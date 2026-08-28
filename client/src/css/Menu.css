@@ -1,0 +1,235 @@
+/* Reset giao diện chuẩn */
+.menu-page-wrapper {
+  background-color: #fcfbf9;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* 1. Header Đỏ Đô */
+.madame-header {
+  background-color: #8b1d1d;
+  color: #ffffff;
+  width: 100%;
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.brand-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #f0e6d2;
+  letter-spacing: 1px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+
+.nav-links span {
+  color: #f0e6d2;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.nav-links span:hover,
+.nav-links span.active {
+  color: #ffffff;
+  font-weight: 700;
+  border-bottom: 2px solid #d4a359;
+}
+
+.btn-order-now {
+  background-color: #d4a359;
+  color: #ffffff;
+  font-weight: 600;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.btn-order-now:hover {
+  background-color: #b88940;
+}
+
+/* 2. Banner To Full Màn Hình */
+/* 2. Banner To Full Tỉ Lệ Chuẩn */
+.menu-banner-section {
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+  background-color: #fcfbf9;
+}
+
+.banner-img {
+  width: 100%;
+  height: auto; /* Giữ nguyên tỉ lệ ảnh gốc, không bị xén chiều cao */
+  display: block;
+  object-fit: contain;
+  filter: none; /* Bỏ lớp làm tối ảnh để ảnh sáng đẹp chuẩn gốc */
+}
+
+/* Chữ đè lên Banner (Tùy chọn: có thể để chữ hoặc ẩn đi nếu ảnh đã có chữ sẵn) */
+.banner-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  width: 100%;
+  pointer-events: none; /* Tránh cản trở thao tác */
+}
+
+.banner-title {
+  font-size: 52px;
+  font-weight: 700;
+  color: #ffffff;
+  margin-bottom: 8px;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6); /* Đổ bóng nhẹ giúp chữ rõ trên ảnh sáng */
+}
+
+.banner-subtitle {
+  font-size: 18px;
+  color: #f0f0f0;
+  margin: 0;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+/* 3. Khung Nội Dung Menu Dạng Sách 2 Trang Đối Xứng */
+.menu-content-container {
+  width: 100%;
+  padding: 40px 15px;
+}
+
+.menu-book-wrapper {
+  max-width: 1200px;
+  margin: 0 auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: #ffffff;
+}
+
+/* Hàng chứa 2 trang kề nhau (Nằm ngang) */
+.menu-spread-row {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  align-items: stretch;
+  justify-content: center;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.menu-spread-row:last-child {
+  border-bottom: none;
+}
+
+/* Mỗi trang chiếm đúng 50% độ rộng màn hình */
+.menu-page-half {
+  flex: 0 0 50%;
+  max-width: 50%;
+  position: relative;
+  overflow: hidden;
+  cursor: pointer;
+  background-color: #fafafa;
+}
+
+.menu-page-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.menu-page-half:hover .menu-page-img {
+  transform: scale(1.015);
+}
+
+/* Overlay khi Hover phóng to */
+.img-hover-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.25s ease-in-out;
+}
+
+.menu-page-half:hover .img-hover-overlay {
+  opacity: 1;
+}
+
+/* Modal Phóng To */
+.modal-backdrop-custom {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.modal-img {
+  max-height: 90vh;
+  max-width: 90vw;
+  border-radius: 4px;
+}
+
+.btn-close-custom {
+  position: absolute;
+  top: -15px;
+  right: -15px;
+  background: #8b1d1d;
+  color: white;
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+}
+
+/* Scroll Top Button */
+.btn-scroll-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #8b1d1d;
+  color: white;
+  border: none;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+  cursor: pointer;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Responsive cho màn hình điện thoại (Tự xếp dọc khi màn hình nhỏ) */
+@media (max-width: 768px) {
+  .menu-spread-row {
+    flex-direction: column;
+  }
+  .menu-page-half {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+}

@@ -1,0 +1,186 @@
+/* Filter Bar */
+.prod-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #161616;
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  padding: 12px 18px;
+  border-radius: 10px;
+  margin-top: 18px;
+}
+
+.filter-label {
+  color: #d4af37;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.prod-select-filter {
+  background: #0d0d0d;
+  color: #fff;
+  border: 1px solid #333;
+  padding: 8px 12px;
+  border-radius: 6px;
+  outline: none;
+}
+
+.prod-select-filter:focus {
+  border-color: #d4af37;
+}
+
+/* Card Table */
+.prod-table-card {
+  background: #161616;
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 18px;
+}
+
+.prod-loading, .prod-empty {
+  padding: 40px;
+  text-align: center;
+  color: #a0a0a0;
+}
+
+.prod-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.prod-table th {
+  background: #1c1c1c;
+  color: #d4af37;
+  padding: 14px 18px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+}
+
+.prod-table td {
+  padding: 14px 18px;
+  color: #e0e0e0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: middle;
+}
+
+.prod-table tr:hover {
+  background: rgba(212, 175, 55, 0.03);
+}
+
+.prod-info-td {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.prod-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.prod-name {
+  color: #fff;
+  font-size: 15px;
+  display: block;
+}
+
+.prod-desc {
+  color: #888;
+  font-size: 12px;
+  margin: 2px 0 0 0;
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.prod-price {
+  color: #d4af37;
+  font-weight: 700;
+}
+
+/* Badges */
+.badge-category {
+  background: rgba(212, 175, 55, 0.1);
+  color: #d4af37;
+  border: 1px solid rgba(212, 175, 55, 0.25);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge-available {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-unavailable {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.badge-bestseller {
+  background: rgba(241, 196, 15, 0.15);
+  color: #f1c40f;
+  border: 1px solid rgba(241, 196, 15, 0.3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Modal Form Custom */
+.modal-large {
+  max-width: 600px !important;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.modal-select {
+  width: 100%;
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  outline: none;
+}
+
+.modal-select:focus {
+  border-color: #d4af37;
+}
+
+.form-checkbox-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}

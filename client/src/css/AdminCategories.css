@@ -1,0 +1,244 @@
+/* Button Thêm Mới Gold */
+.btn-add-gold {
+  background: linear-gradient(135deg, #f5a623 0%, #d4af37 100%);
+  color: #0d0d0d;
+  font-weight: 700;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(212, 175, 55, 0.2);
+}
+
+.btn-add-gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
+}
+
+/* Card Bảng */
+.cat-table-card {
+  background: #161616;
+  border: 1px solid rgba(212, 175, 55, 0.15);
+  border-radius: 12px;
+  overflow: hidden;
+  margin-top: 20px;
+}
+
+.cat-loading, .cat-empty {
+  padding: 40px;
+  text-align: center;
+  color: #a0a0a0;
+}
+
+.cat-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.cat-table th {
+  background: #1c1c1c;
+  color: #d4af37;
+  padding: 14px 18px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(212, 175, 55, 0.15);
+}
+
+.cat-table td {
+  padding: 14px 18px;
+  color: #e0e0e0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  vertical-align: middle;
+}
+
+.cat-table tr:hover {
+  background: rgba(212, 175, 55, 0.03);
+}
+
+.cat-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.cat-name {
+  font-weight: 600;
+  color: #fff;
+}
+
+.cat-desc {
+  color: #888;
+  font-size: 13px;
+  max-width: 250px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Badges */
+.badge-active {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.badge-inactive {
+  background: rgba(231, 76, 60, 0.15);
+  color: #e74c3c;
+  border: 1px solid rgba(231, 76, 60, 0.3);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+/* Action Buttons */
+.btn-icon {
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: all 0.2s;
+}
+
+.btn-icon.edit {
+  color: #d4af37;
+  border-color: rgba(212, 175, 55, 0.2);
+}
+
+.btn-icon.edit:hover {
+  background: #d4af37;
+  color: #000;
+}
+
+.btn-icon.delete {
+  color: #e74c3c;
+  border-color: rgba(231, 76, 60, 0.2);
+}
+
+.btn-icon.delete:hover {
+  background: #e74c3c;
+  color: #fff;
+}
+
+/* Modal Overlay & Card */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: #181818;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  border-radius: 12px;
+  width: 100%;
+  max-width: 480px;
+  padding: 24px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.modal-header h2 {
+  color: #d4af37;
+  font-size: 18px;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+}
+
+.modal-close:hover {
+  color: #fff;
+}
+
+.modal-form .form-group {
+  margin-bottom: 16px;
+}
+
+.modal-form label {
+  display: block;
+  font-size: 12px;
+  color: #d4af37;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.modal-form input[type="text"],
+.modal-form textarea {
+  width: 100%;
+  background: #0d0d0d;
+  border: 1px solid #2a2a2a;
+  color: #fff;
+  padding: 10px 14px;
+  border-radius: 8px;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.modal-form input:focus,
+.modal-form textarea:focus {
+  border-color: #d4af37;
+}
+
+.form-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.form-checkbox label {
+  color: #ccc;
+  font-size: 14px;
+  text-transform: none;
+  margin: 0;
+  cursor: pointer;
+}
+
+.btn-submit-gold {
+  width: 100%;
+  padding: 12px;
+  background: #d4af37;
+  color: #000;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-transform: uppercase;
+}
+
+.btn-submit-gold:hover {
+  background: #f5a623;
+}

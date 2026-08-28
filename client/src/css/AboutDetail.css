@@ -1,0 +1,185 @@
+.about-detail-page {
+  background-color: #0f1411;
+  color: #ffffff;
+  font-family: "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  overflow-x: hidden;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+/* 1. Banner Section */
+.about-banner-section {
+  width: 100%;
+}
+
+.about-banner-section .banner-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 2. Tầm nhìn - Sứ mệnh */
+.tam-nhin-su-menh-section {
+  padding: 30px 0 60px;
+  background-color: #0f1411;
+}
+
+.breadcrumbs {
+  font-size: 14px;
+  color: #a0a0a0;
+  margin-bottom: 20px;
+}
+
+.breadcrumbs a {
+  color: #ffffff;
+  text-decoration: none;
+}
+
+.breadcrumbs a:hover {
+  color: #a82825;
+}
+
+.content-center {
+  text-align: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.img-tam-nhin {
+  max-width: 200px;
+  margin-bottom: 25px;
+}
+
+.text-wrapper p {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #e0e0e0;
+  font-weight: 300;
+}
+
+/* 3. Câu chuyện thương hiệu */
+.cau-chuyen-section {
+  padding: 80px 0;
+  background-color: #ffffff;
+  color: #333333;
+}
+
+.cau-chuyen-section .row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 40px;
+}
+
+.col-img {
+  flex: 1;
+  min-width: 300px;
+}
+
+.col-img img {
+  width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+.col-text {
+  flex: 1.4;
+  min-width: 300px;
+}
+
+.section-title {
+  color: #a82825;
+  font-size: 32px;
+  margin-bottom: 24px;
+  font-weight: 700;
+}
+
+.story-content p {
+  font-size: 15px;
+  line-height: 1.8;
+  color: #4a4a4a;
+  margin-bottom: 16px;
+  text-align: justify;
+}
+
+/* 4. Triết lý thương hiệu */
+.triet-li-section {
+  padding: 80px 0;
+  background-color: #0f1411;
+  color: #ffffff;
+}
+
+.triet-li-title {
+  text-align: center;
+  font-size: 32px;
+  color: #ffffff;
+  margin-bottom: 20px;
+}
+
+.triet-li-intro {
+  text-align: center;
+  max-width: 850px;
+  margin: 0 auto 50px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: #cccccc;
+}
+
+.triet-li-intro strong {
+  color: #d4af37;
+}
+
+.triet-li-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 30px;
+}
+
+.triet-li-card {
+  text-align: center;
+}
+
+.card-img-wrapper {
+  overflow: hidden;
+  border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.card-img-wrapper img {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.triet-li-card:hover .card-img-wrapper img {
+  transform: scale(1.08);
+}
+
+.triet-li-card h3 {
+  font-size: 20px;
+  color: #ffffff;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.triet-li-card p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #bbbbbb;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .triet-li-grid {
+    grid-template-columns: repeat(1, 1fr);
+  }
+  
+  .cau-chuyen-section .row {
+    flex-direction: column;
+  }
+}

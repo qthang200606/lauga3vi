@@ -1,0 +1,156 @@
+/* Khung Footer Tông Vàng Đồng Sang Trọng */
+.footer-gold-container {
+  background-color: #c59d5f; /* Màu vàng đồng sang trọng */
+  color: #ffffff;
+  padding: 35px 20px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.footer-gold-content {
+  max-width: 1300px;
+  margin: 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: nowrap;
+}
+
+.footer-col {
+  flex: 1;
+  min-width: 160px;
+}
+
+/* Cột Logo */
+.brand-col {
+  flex: 1.2;
+}
+
+.brand-logo-box {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-icon {
+  color: #ffffff;
+  border: 2px solid #ffffff;
+  padding: 6px;
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffffff;
+}
+
+.brand-sub {
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  opacity: 0.9;
+}
+
+/* Tiêu đề từng cột */
+.footer-heading {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #ffffff;
+  font-family: serif, 'Times New Roman';
+}
+
+/* Nội dung văn bản */
+.footer-text {
+  font-size: 14px;
+  line-height: 1.6;
+  margin-bottom: 4px;
+  color: #f7f3ec;
+}
+
+.highlight-phone {
+  font-weight: 700;
+  font-size: 15px;
+  margin-top: 4px;
+}
+
+/* Mạng xã hội */
+.social-icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.social-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.social-btn:hover {
+  background: #ffffff;
+  color: #c59d5f;
+  transform: translateY(-2px);
+}
+
+/* Nút điện thoại nổi phía bên phải */
+.floating-call-btn {
+  position: absolute;
+  right: 25px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 50px;
+  height: 50px;
+  background-color: #a37f44;
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.floating-call-btn:hover {
+  background-color: #8c6a33;
+  transform: translateY(-50%) scale(1.1);
+}
+
+/* Responsive cho màn hình nhỏ */
+@media (max-width: 992px) {
+  .footer-gold-content {
+    flex-wrap: wrap;
+    gap: 30px;
+  }
+  .footer-col {
+    flex: 0 0 45%;
+  }
+  .floating-call-btn {
+    top: 20px;
+    transform: none;
+  }
+}
+
+@media (max-width: 576px) {
+  .footer-col {
+    flex: 0 0 100%;
+  }
+}

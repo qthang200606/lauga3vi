@@ -1,0 +1,211 @@
+/* Header Tone Màu Vàng Hoàng Gia Sang Trọng */
+.main-header {
+  position: sticky;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  background: linear-gradient(135deg, #d4a359 0%, #b8863b 100%) !important; /* Tông màu vàng chủ đạo */
+  border-bottom: 2px solid #8c621d;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+}
+
+.header-inner {
+  max-width: 1300px;
+  width: 92%;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 75px;
+  gap: 20px;
+}
+
+/* Brand Logo */
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none !important;
+  flex-shrink: 0;
+}
+
+.brand-logo-wrapper {
+  background: #2b1810; /* Nền biểu tượng nâu đen tương phản */
+  color: #d4a359;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.brand-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  color: #1a0f0a; /* Chữ màu đậm nổi bật trên nền vàng */
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 1px;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.brand-subtitle {
+  color: #3d2314;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  white-space: nowrap;
+}
+
+/* Navigation Links */
+.main-nav {
+  display: flex;
+  align-items: center;
+  gap: 25px;
+}
+
+.nav-link {
+  color: #2b1810 !important;
+  text-decoration: none !important;
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  transition: all 0.3s ease;
+  padding: 5px 0;
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: #ffffff !important;
+  border-bottom: 2px solid #2b1810;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+/* Header Actions */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.header-icon-btn {
+  background: rgba(43, 24, 16, 0.12);
+  border: 1px solid rgba(43, 24, 16, 0.25);
+  color: #2b1810;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.header-icon-btn:hover {
+  background: #2b1810;
+  color: #d4a359;
+  border-color: #2b1810;
+}
+
+.badge-count {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #2b1810;
+  color: #fff;
+  font-size: 10px;
+  font-weight: bold;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-gold {
+  background: #ffffff;
+  color: #2b1810;
+}
+
+.user-profile-badge {
+  display: flex;
+  align-items: center;
+  margin: 0 4px;
+}
+
+.user-greeting {
+  font-size: 13.5px;
+  color: #2b1810;
+  white-space: nowrap;
+}
+
+.user-greeting strong {
+  color: #000;
+}
+
+.btn-admin-access {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #2b1810;
+  border: 1px solid #2b1810;
+  color: #d4a359;
+  padding: 6px 12px;
+  border-radius: 4px;
+  text-decoration: none !important;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.btn-logout {
+  background: none;
+  border: none;
+  color: #2b1810;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 5px;
+  transition: color 0.2s;
+}
+
+.btn-logout:hover {
+  color: #a80000;
+}
+
+.btn-gold-outline {
+  border: 2px solid #2b1810;
+  color: #2b1810;
+  padding: 6px 18px;
+  border-radius: 4px;
+  text-decoration: none !important;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: all 0.3s;
+}
+
+.btn-gold-outline:hover {
+  background: #2b1810;
+  color: #d4a359;
+}
+
+/* Responsive */
+@media (max-width: 992px) {
+  .main-nav {
+    display: none;
+  }
+}
