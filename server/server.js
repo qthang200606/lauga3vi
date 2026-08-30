@@ -15,11 +15,13 @@ const app = express();
 // Middleware
 // ====================
 app.use(cors({
-    origin: [
-    "https://lauga3vi-efeun3epa-nqt3.vercel.app", // Thay đúng URL Vercel của bạn
-    "http://localhost:5173"
+  origin: [
+    "https://lauga3vi.vercel.app",
+    "https://lauga3vi-efeun3epa-nqt3.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000"
   ],
-    credentials: true
+  credentials: true
 }));
 
 app.use(express.json());
