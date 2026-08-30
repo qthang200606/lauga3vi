@@ -1,7 +1,7 @@
 // src/api/orderApi.js
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/orders';
+const API_URL = 'https://lauga3vi-server.onrender.com/api/orders';
 
 // Hàm phụ trợ lấy token từ localStorage
 const getToken = () => {

@@ -52,8 +52,7 @@ function AdminQR() {
     }
   }, [tables]);
 
-  const baseUrl = window.location.origin;
-
+ const baseUrl = "https://lauga3vi.vercel.app";
   const generateNextCode = () => {
     let number = 1;
     while (tables.some((table) => table.code === `B${String(number).padStart(2, "0")}`)) {

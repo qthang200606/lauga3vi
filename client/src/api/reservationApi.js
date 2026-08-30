@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:5000/api/reservations";
+const BASE_URL = "https://lauga3vi-server.onrender.com/api/reservations";
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
