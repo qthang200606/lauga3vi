@@ -221,15 +221,7 @@ export default function ProductOrder() {
       return;
     }
 
-    const token = getToken();
-
-    // Backend hiện tại của bạn đang dùng protect
-    if (!token) {
-      alert(
-        "Bạn chưa đăng nhập. Vui lòng đăng nhập để đặt món!"
-      );
-      return;
-    }
+    
 
     setIsSubmitting(true);
 
@@ -287,8 +279,7 @@ export default function ProductOrder() {
     try {
       const res = await axios.post(
         `${API_URL}/api/orders`,
-        newOrder,
-        getAuthConfig()
+  newOrder
       );
 
       console.log(
