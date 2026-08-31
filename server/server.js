@@ -15,7 +15,13 @@ const app = express();
 // Middleware
 // ====================
 app.use(cors({
-  origin: true, // Cho phép tất cả các domain/preview domain kết nối
+  // Thay thế bằng link Vercel chính thức của bạn (bỏ dấu gạch chéo / ở cuối link nếu có)
+  origin: [
+    "https://lauga3vi.vercel.app", 
+    "https://your-app-name.vercel.app", 
+    "http://localhost:5173", // Giữ lại để test PC local
+    "http://localhost:3000"
+  ],
   credentials: true
 }));
 app.use(express.json());

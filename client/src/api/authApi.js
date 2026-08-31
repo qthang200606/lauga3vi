@@ -1,7 +1,11 @@
 import axios from "axios";
 
+// 💡 Dùng đường dẫn tương đối để điện thoại gọi về chính domain Vercel
 const API = axios.create({
-  baseURL: "https://lauga3vi-server.onrender.com/api/auth",
+  baseURL: "/api/auth",
+  headers: {
+    "Content-Type": "application/json",
+  },
 });
 
 API.interceptors.request.use((req) => {
@@ -12,7 +16,7 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
-// Export theo tên (named export)
+// Export các hàm API
 export const loginApi = (formData) => API.post("/login", formData);
 export const registerApi = (formData) => API.post("/register", formData);
 export const getMeApi = () => API.get("/me");

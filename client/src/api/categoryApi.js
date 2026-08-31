@@ -1,7 +1,10 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: 'https://lauga3vi-server.onrender.com/api/categories'
+  baseURL: '/api/categories',
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
 API.interceptors.request.use((req) => {

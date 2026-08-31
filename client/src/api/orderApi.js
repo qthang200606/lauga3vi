@@ -1,8 +1,12 @@
 // src/api/orderApi.js
 import axios from 'axios';
 
-const API_URL = 'https://lauga3vi-server.onrender.com/api/orders';
-
+const API = axios.create({
+  baseURL: '/api/orders',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 // Hàm phụ trợ lấy token từ localStorage
 const getToken = () => {
   let token = localStorage.getItem('token');

@@ -1,6 +1,11 @@
 import axios from "axios";
 
-const BASE_URL = "https://lauga3vi-server.onrender.com/api/reservations";
+const API = axios.create({
+  baseURL: '/api/reservations',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
 
 const getAuthHeaders = () => {
   const token = localStorage.getItem("token");
