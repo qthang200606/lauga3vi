@@ -1,33 +1,37 @@
 import axios from "axios";
 
-// 1. Khởi tạo instance API dùng chung đường dẫn tương đối Proxy
-const API = axios.create({
-  baseURL: "/api/reservations",
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+const BASE_URL = "https://lauga3vi-server.onrender.com/api/reservations";
 
-// 2. Tự động đính kèm Token vào Header cho mọi request gửi đi
-API.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+const getAuthHeaders = () => {
+  const token = localStorage.getItem("token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
 
-// 3. Tạo đơn đặt bàn mới
-export const createReservationApi = (bookingData) => API.post("/", bookingData);
+// 1. Tạo đơn đặt bàn mới (GỬI KÈM TOKEN ĐỂ BACKEND BIẾT AI ĐANG ĐẶT)
+export const createReservationApi = async (bookingData) => {
+  return await axios.post(BASE_URL, bookingData, {
+    headers: getAuthHeaders(),
+  });
+};
 
-// 4. Lấy danh sách lịch sử đặt bàn của User đang đăng nhập (Sửa lỗi crash ở HeaderContext)
-export const getMyReservationsApi = () => API.get("/my-reservations");
+// 2. Lấy danh sách lịch sử của User đang đăng nhập
+export const getMyReservationsApi = async () => {
+  return await axios.get(`${BASE_URL}/my-reservations`, {
+    headers: getAuthHeaders(),
+  });
+};
 
-// 5. Admin: Lấy tất cả danh sách đặt bàn
-export const getReservationsApi = (params) => API.get("/", { params });
+// 3. Admin lấy tất cả
+export const getReservationsApi = async (params) => {
+  return await axios.get(BASE_URL, {
+    params,
+    headers: getAuthHeaders(),
+  });
+};
 
-// 6. Admin: Cập nhật trạng thái đặt bàn
-export const updateReservationStatusApi = (id, payload) => API.patch(`/${id}/status`, payload);
+// 4. Admin cập nhật trạng thái
+export const updateReservationStatusApi = async (id, payload) => {
+  return await axios.patch(`${BASE_URL}/${id}/status`, payload, {
+    headers: getAuthHeaders(),
+  });
+};

@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: '/api/',
+  baseURL: "https://lauga3vi-server.onrender.com/api/products",
 });
 
 API.interceptors.request.use((req) => {

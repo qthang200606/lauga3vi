@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: "/api",
+  baseURL: "https://lauga3vi-server.onrender.com/api/auth",
 });
 
 API.interceptors.request.use((req) => {
@@ -12,7 +12,7 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
-// Thêm /auth trước các endpoint để trùng khớp với backend Route
-export const loginApi = (formData) => API.post("/auth/login", formData);
-export const registerApi = (formData) => API.post("/auth/register", formData);
-export const getMeApi = () => API.get("/auth/me");
+// Export theo tên (named export)
+export const loginApi = (formData) => API.post("/login", formData);
+export const registerApi = (formData) => API.post("/register", formData);
+export const getMeApi = () => API.get("/me");
