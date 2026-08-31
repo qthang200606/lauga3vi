@@ -1,8 +1,7 @@
 import axios from "axios";
 
-// 💡 Dùng đường dẫn tương đối để điện thoại gọi về chính domain Vercel
 const API = axios.create({
-  baseURL: "/api/",
+  baseURL: "/api",
 });
 
 API.interceptors.request.use((req) => {
@@ -13,7 +12,7 @@ API.interceptors.request.use((req) => {
   return req;
 });
 
-// Export các hàm API
-export const loginApi = (formData) => API.post("/login", formData);
-export const registerApi = (formData) => API.post("/register", formData);
-export const getMeApi = () => API.get("/me");
+// Thêm /auth trước các endpoint để trùng khớp với backend Route
+export const loginApi = (formData) => API.post("/auth/login", formData);
+export const registerApi = (formData) => API.post("/auth/register", formData);
+export const getMeApi = () => API.get("/auth/me");
