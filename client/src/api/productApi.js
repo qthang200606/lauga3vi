@@ -1,10 +1,7 @@
 import axios from "axios";
 
 const API = axios.create({
-  baseURL: '/api/products',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: '/api/',
 });
 
 API.interceptors.request.use((req) => {

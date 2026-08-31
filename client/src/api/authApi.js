@@ -2,10 +2,7 @@ import axios from "axios";
 
 // 💡 Dùng đường dẫn tương đối để điện thoại gọi về chính domain Vercel
 const API = axios.create({
-  baseURL: "/api/auth",
-  headers: {
-    "Content-Type": "application/json",
-  },
+  baseURL: "/api/",
 });
 
 API.interceptors.request.use((req) => {

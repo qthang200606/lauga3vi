@@ -2,10 +2,7 @@
 import axios from 'axios';
 
 const API = axios.create({
-  baseURL: '/api/orders',
-  headers: {
-    'Content-Type': 'application/json',
-  },
+  baseURL: '/api/',
 });
 // Hàm phụ trợ lấy token từ localStorage
 const getToken = () => {
