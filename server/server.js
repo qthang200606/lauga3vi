@@ -14,29 +14,32 @@ const app = express();
 // ====================
 // Middleware
 // ====================
-app.use(cors({
-  // Thay thế bằng link Vercel chính thức của bạn (bỏ dấu gạch chéo / ở cuối link nếu có)
-  origin: [
-    "https://lauga3vi.vercel.app", 
-    "https://your-app-name.vercel.app", 
-    "http://localhost:5173", // Giữ lại để test PC local
-    "http://localhost:3000"
-  ],
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: [
+      "https://lauga3vi.vercel.app",
+      "https://your-app-name.vercel.app",
+      "http://localhost:5173",
+      "http://localhost:3000",
+    ],
+    credentials: true,
+  })
+);
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // ====================
 // Kết nối MongoDB
 // ====================
 mongoose
-    .connect(process.env.MONGO_URI)
-    .then(() => {
-        console.log("MongoDB: Kết nối thành công!");
-    })
-    .catch((err) => {
-        console.error("MongoDB lỗi kết nối:", err);
-    });
+  .connect(process.env.MONGO_URI)
+  .then(() => {
+    console.log("MongoDB: Kết nối thành công!");
+  })
+  .catch((err) => {
+    console.error("MongoDB lỗi kết nối:", err);
+  });
 
 // ====================
 // Routes
@@ -53,5 +56,5 @@ app.use("/api/reservations", reservationRoutes);
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server đang chạy tại port ${PORT}`);
+  console.log(`Server đang chạy tại port ${PORT}`);
 });

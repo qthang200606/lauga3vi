@@ -20,7 +20,6 @@ import { getCategoriesApi } from "../api/categoryApi";
 import AdminSidebar from "../components/AdminSidebar";
 import "../css/AdminProducts.css";
 
-// Ảnh mặc định dự phòng khi link hỏng/trống
 const DEFAULT_IMAGE =
   "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=200&auto=format&fit=crop&q=60";
 
@@ -35,6 +34,9 @@ const AdminProducts = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
 
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState("");
+
   const [formData, setFormData] = useState({
     name: "",
     category: "",
@@ -45,7 +47,6 @@ const AdminProducts = () => {
     isBestSeller: false,
   });
 
-  // Hàm xử lý đường dẫn ảnh linh hoạt
   const getImageUrl = (url) => {
     if (!url || typeof url !== "string" || url.trim() === "") {
       return DEFAULT_IMAGE;
@@ -60,7 +61,6 @@ const AdminProducts = () => {
     return `http://localhost:5000${url.startsWith("/") ? "" : "/"}${url}`;
   };
 
-  // Fetch danh sách danh mục & sản phẩm
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -81,7 +81,16 @@ const AdminProducts = () => {
     fetchData();
   }, [selectedCategoryFilter]);
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleOpenModal = (prod = null) => {
+    setImageFile(null);
     if (prod) {
       setEditingId(prod._id);
       setFormData({
@@ -93,6 +102,7 @@ const AdminProducts = () => {
         isAvailable: prod.isAvailable,
         isBestSeller: prod.isBestSeller,
       });
+      setImagePreview(getImageUrl(prod.image));
     } else {
       setEditingId(null);
       setFormData({
@@ -104,6 +114,7 @@ const AdminProducts = () => {
         isAvailable: true,
         isBestSeller: false,
       });
+      setImagePreview("");
     }
     setIsModalOpen(true);
   };
@@ -115,16 +126,36 @@ const AdminProducts = () => {
       return;
     }
 
+    // Ép kiểu dữ liệu chuẩn xác trước khi đưa vào FormData
+    const dataToSend = new FormData();
+    dataToSend.append("name", formData.name.trim());
+    dataToSend.append("category", formData.category);
+    dataToSend.append("price", String(Number(formData.price)));
+    dataToSend.append("description", formData.description || "");
+    dataToSend.append("isAvailable", String(formData.isAvailable));
+    dataToSend.append("isBestSeller", String(formData.isBestSeller));
+
+    if (imageFile) {
+      dataToSend.append("image", imageFile);
+    } else if (formData.image) {
+      dataToSend.append("image", formData.image);
+    }
+
     try {
       if (editingId) {
-        await updateProductApi(editingId, formData);
+        await updateProductApi(editingId, dataToSend);
       } else {
-        await createProductApi(formData);
+        await createProductApi(dataToSend);
       }
       setIsModalOpen(false);
       fetchData();
     } catch (err) {
-      alert(err.response?.data?.message || "Đã xảy ra lỗi");
+      console.error("Lỗi gửi dữ liệu món ăn:", err.response?.data || err);
+      const backendError =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Đã xảy ra lỗi khi tạo/sửa món ăn";
+      alert(`Thất bại (400 Bad Request): ${backendError}`);
     }
   };
 
@@ -141,10 +172,8 @@ const AdminProducts = () => {
 
   return (
     <div className="admin-page">
-      {/* CẢI TIẾN: Nhúng AdminSidebar component vào đây */}
       <AdminSidebar />
 
-      {/* MAIN CONTENT */}
       <main className="admin-main">
         <div className="admin-top">
           <h1>Quản Lý Món Ăn</h1>
@@ -153,7 +182,6 @@ const AdminProducts = () => {
           </button>
         </div>
 
-        {/* LỌC THEO DANH MỤC */}
         <div className="prod-filter-bar">
           <div className="filter-label">
             <Filter size={16} /> Lọc theo Danh mục:
@@ -172,7 +200,6 @@ const AdminProducts = () => {
           </select>
         </div>
 
-        {/* BẢNG SẢN PHẨM */}
         <div className="prod-table-card">
           {loading ? (
             <div className="prod-loading">Đang tải danh sách món ăn...</div>
@@ -259,7 +286,6 @@ const AdminProducts = () => {
           )}
         </div>
 
-        {/* MODAL THÊM / SỬA MÓN */}
         {isModalOpen && (
           <div className="modal-overlay">
             <div className="modal-content modal-large">
@@ -326,16 +352,14 @@ const AdminProducts = () => {
                   </div>
 
                   <div className="form-group">
-                    <label>URL Hình ảnh</label>
+                    <label>Hình ảnh món ăn</label>
                     <input
-                      type="text"
-                      placeholder="https://images.unsplash.com/photo-..."
-                      value={formData.image}
-                      onChange={(e) =>
-                        setFormData({ ...formData, image: e.target.value })
-                      }
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileChange}
+                      className="file-input-custom"
                     />
-                    {/* Live Preview ảnh trong Modal */}
+
                     <div
                       style={{
                         marginTop: "8px",
@@ -348,7 +372,7 @@ const AdminProducts = () => {
                         Xem trước:
                       </span>
                       <img
-                        src={getImageUrl(formData.image)}
+                        src={imagePreview || DEFAULT_IMAGE}
                         alt="Preview"
                         style={{
                           width: "48px",
