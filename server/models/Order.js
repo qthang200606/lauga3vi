@@ -37,31 +37,41 @@ const orderSchema = new mongoose.Schema(
     // ==========================================
     // DANH SÁCH MÓN
     // ==========================================
-    items: [
-      {
-        product: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Product",
-          required: false,
-        },
+    // ==========================================
+// DANH SÁCH MÓN
+// ==========================================
+items: [
+  {
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: false,
+    },
 
-        name: {
-          type: String,
-          required: true,
-        },
+    name: {
+      type: String,
+      required: true,
+    },
 
-        price: {
-          type: Number,
-          required: true,
-        },
+    price: {
+      type: Number,
+      required: true,
+    },
 
-        quantity: {
-          type: Number,
-          required: true,
-          default: 1,
-        },
-      },
-    ],
+    quantity: {
+      type: Number,
+      required: true,
+      default: 1,
+    },
+
+    // THÊM TRƯỜNG GHI CHÚ RIÊNG CHO TỪNG MÓN VÀO ĐÂY
+    note: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+  },
+],
 
     // ==========================================
     // THÔNG TIN KHÁCH
