@@ -3,10 +3,6 @@ const Order = require("../models/Order");
 // ======================================================
 // 1. TẠO ĐƠN HÀNG
 // ======================================================
-// Hỗ trợ:
-// - Khách quét QR tại bàn: KHÔNG cần đăng nhập
-// - Khách đăng nhập đặt món: CÓ user
-// ======================================================
 
 exports.createOrder = async (req, res) => {
   try {
@@ -15,14 +11,12 @@ exports.createOrder = async (req, res) => {
       shippingInfo,
       paymentMethod,
       totalPrice,
-
-      // Dữ liệu từ ProductOrder khi quét QR
       tableCode,
       orderType,
       totalAmount,
-
       customerName,
       customerPhone,
+      note,
     } = req.body;
 
     // ==================================================
@@ -37,12 +31,7 @@ exports.createOrder = async (req, res) => {
     }
 
     // ==================================================
-    // XÁC ĐỊNH USER
-    // ==================================================
-    // Nếu khách đăng nhập -> có req.user
-    // Nếu khách quét QR -> req.user không tồn tại
-    //
-    // KHÔNG được bắt buộc user nữa.
+    // USER
     // ==================================================
 
     const userId = req.user?._id || req.user?.id || null;
@@ -58,45 +47,35 @@ exports.createOrder = async (req, res) => {
       return sum + price * quantity;
     }, 0);
 
-    // Ưu tiên totalPrice nếu hệ thống cũ gửi lên
-    // Nếu QR gửi totalAmount thì dùng totalAmount
     const finalTotal = Number(
       totalPrice ?? totalAmount ?? calculatedTotal
     );
 
     // ==================================================
-    // FORMAT SẢN PHẨM
+    // FORMAT ITEMS
     // ==================================================
 
     const formattedItems = items.map((item) => ({
       product: item.product || item._id || item.id,
 
-      name: item.name,
+      name: item.name || "Món ăn",
 
       price: Number(item.price || 0),
 
       quantity: Number(item.quantity || 1),
 
-      // Nếu model Order không có image thì có thể xóa dòng này
+      ...(item.note ? { note: item.note } : {}),
+
       ...(item.image ? { image: item.image } : {}),
     }));
 
     // ==================================================
     // SHIPPING INFO
     // ==================================================
-    // Với QR:
-    //
-    // tableCode = B01
-    // orderType = Dine-in
-    //
-    // Ta lưu vào shippingInfo để tận dụng
-    // cấu trúc Order hiện tại.
-    // ==================================================
 
     const finalShippingInfo = {
       ...(shippingInfo || {}),
 
-      // Nếu QR tại bàn
       tableCode:
         tableCode ||
         shippingInfo?.tableCode ||
@@ -123,7 +102,6 @@ exports.createOrder = async (req, res) => {
     // ==================================================
 
     const orderData = {
-      // QR không có user -> null
       user: userId,
 
       items: formattedItems,
@@ -135,14 +113,12 @@ exports.createOrder = async (req, res) => {
 
       totalPrice: finalTotal,
 
+      note: note || "",
+
       status: "pending",
 
       isPaid: false,
     };
-
-    // ==================================================
-    // LƯU DATABASE
-    // ==================================================
 
     const newOrder = new Order(orderData);
 
@@ -162,10 +138,6 @@ exports.createOrder = async (req, res) => {
     console.log("💰 Tổng:", finalTotal);
     console.log("====================================");
 
-    // ==================================================
-    // RESPONSE
-    // ==================================================
-
     return res.status(201).json({
       success: true,
 
@@ -178,14 +150,13 @@ exports.createOrder = async (req, res) => {
 
   } catch (error) {
     console.error(
-      "🔥 LỖI TẠO ĐƠN HÀNG (createOrder):",
+      "🔥 LỖI TẠO ĐƠN HÀNG:",
       error
     );
 
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống khi lưu đơn hàng",
-
       error: error.message,
     });
   }
@@ -193,7 +164,7 @@ exports.createOrder = async (req, res) => {
 
 
 // ======================================================
-// 2. LẤY ĐƠN HÀNG CỦA USER ĐANG ĐĂNG NHẬP
+// 2. LẤY ĐƠN HÀNG CỦA USER
 // ======================================================
 
 exports.getMyOrders = async (req, res) => {
@@ -229,7 +200,6 @@ exports.getMyOrders = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống khi lấy danh sách đơn hàng",
-
       error: error.message,
     });
   }
@@ -262,7 +232,6 @@ exports.getOrders = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống khi lấy danh sách đơn hàng",
-
       error: error.message,
     });
   }
@@ -270,7 +239,271 @@ exports.getOrders = async (req, res) => {
 
 
 // ======================================================
-// 4. ADMIN CẬP NHẬT TRẠNG THÁI ĐƠN
+// 4. ADMIN CẬP NHẬT CHI TIẾT ĐƠN HÀNG
+// ======================================================
+// Dùng cho POS:
+//
+// - Thêm món
+// - Xóa món
+// - Sửa số lượng
+// - Sửa ghi chú
+// - Cập nhật tổng tiền
+// - Cập nhật khách hàng
+// ======================================================
+
+exports.updateOrder = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      items,
+      shippingInfo,
+      paymentMethod,
+      totalPrice,
+      totalAmount,
+      tableCode,
+      orderType,
+      customerName,
+      customerPhone,
+      note,
+      status,
+      paymentStatus,
+      isPaid,
+    } = req.body;
+
+    // ==================================================
+    // TÌM ĐƠN
+    // ==================================================
+
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy đơn hàng!",
+      });
+    }
+
+    // ==================================================
+    // CẬP NHẬT DANH SÁCH MÓN
+    // ==================================================
+
+    if (Array.isArray(items)) {
+      if (items.length === 0) {
+        order.items = [];
+      } else {
+        order.items = items.map((item) => ({
+          product:
+            item.product ||
+            item._id ||
+            item.id,
+
+          name:
+            item.name ||
+            item.product?.name ||
+            "Món ăn",
+
+          price:
+            Number(
+              item.price ||
+              item.product?.price ||
+              0
+            ),
+
+          quantity:
+            Number(item.quantity || 1),
+
+          ...(item.note
+            ? { note: item.note }
+            : {}),
+
+          ...(item.image
+            ? { image: item.image }
+            : {}),
+        }));
+      }
+    }
+
+    // ==================================================
+    // TỰ TÍNH LẠI TỔNG TIỀN
+    // ==================================================
+
+    if (Array.isArray(items)) {
+      const calculatedTotal = order.items.reduce(
+        (sum, item) => {
+          return (
+            sum +
+            Number(item.price || 0) *
+              Number(item.quantity || 1)
+          );
+        },
+        0
+      );
+
+      // Ưu tiên totalPrice frontend gửi lên,
+      // nếu không có thì dùng tổng tự tính
+      order.totalPrice = Number(
+        totalPrice ??
+        totalAmount ??
+        calculatedTotal
+      );
+    } else if (
+      totalPrice !== undefined ||
+      totalAmount !== undefined
+    ) {
+      order.totalPrice = Number(
+        totalPrice ?? totalAmount
+      );
+    }
+
+    // ==================================================
+    // CẬP NHẬT THÔNG TIN BÀN
+    // ==================================================
+
+    if (tableCode !== undefined) {
+      order.shippingInfo = {
+        ...(order.shippingInfo?.toObject
+          ? order.shippingInfo.toObject()
+          : order.shippingInfo || {}),
+
+        tableCode,
+      };
+    }
+
+    // ==================================================
+    // CẬP NHẬT ORDER TYPE
+    // ==================================================
+
+    if (orderType !== undefined) {
+      order.shippingInfo = {
+        ...(order.shippingInfo?.toObject
+          ? order.shippingInfo.toObject()
+          : order.shippingInfo || {}),
+
+        orderType,
+      };
+    }
+
+    // ==================================================
+    // CẬP NHẬT KHÁCH HÀNG
+    // ==================================================
+
+    if (customerName !== undefined) {
+      order.shippingInfo = {
+        ...(order.shippingInfo?.toObject
+          ? order.shippingInfo.toObject()
+          : order.shippingInfo || {}),
+
+        customerName,
+      };
+    }
+
+    if (customerPhone !== undefined) {
+      order.shippingInfo = {
+        ...(order.shippingInfo?.toObject
+          ? order.shippingInfo.toObject()
+          : order.shippingInfo || {}),
+
+        customerPhone,
+      };
+    }
+
+    // ==================================================
+    // CẬP NHẬT SHIPPING INFO
+    // ==================================================
+
+    if (shippingInfo !== undefined) {
+      order.shippingInfo = {
+        ...(order.shippingInfo?.toObject
+          ? order.shippingInfo.toObject()
+          : order.shippingInfo || {}),
+
+        ...shippingInfo,
+      };
+    }
+
+    // ==================================================
+    // PAYMENT METHOD
+    // ==================================================
+
+    if (paymentMethod !== undefined) {
+      order.paymentMethod = paymentMethod;
+    }
+
+    // ==================================================
+    // NOTE
+    // ==================================================
+
+    if (note !== undefined) {
+      order.note = note;
+    }
+
+    // ==================================================
+    // STATUS
+    // ==================================================
+
+    if (status !== undefined) {
+      order.status = status;
+    }
+
+    // ==================================================
+    // PAYMENT STATUS
+    // ==================================================
+
+    if (paymentStatus !== undefined) {
+      order.paymentStatus = paymentStatus;
+    }
+
+    // ==================================================
+    // IS PAID
+    // ==================================================
+
+    if (isPaid !== undefined) {
+      order.isPaid = isPaid;
+    }
+
+    // ==================================================
+    // LƯU DATABASE
+    // ==================================================
+
+    await order.save();
+
+    console.log("====================================");
+    console.log("✅ ĐÃ CẬP NHẬT ĐƠN POS");
+    console.log("🧾 Order ID:", id);
+    console.log(
+      "🍽️ Số món:",
+      order.items?.length || 0
+    );
+    console.log(
+      "💰 Tổng mới:",
+      order.totalPrice
+    );
+    console.log("====================================");
+
+    return res.status(200).json({
+      success: true,
+      message: "Cập nhật đơn hàng thành công!",
+      data: order,
+    });
+
+  } catch (error) {
+    console.error(
+      "🔥 LỖI UPDATE ORDER:",
+      error
+    );
+
+    return res.status(500).json({
+      success: false,
+      message: "Lỗi hệ thống khi cập nhật đơn hàng",
+      error: error.message,
+    });
+  }
+};
+
+
+// ======================================================
+// 5. ADMIN CẬP NHẬT TRẠNG THÁI ĐƠN
 // ======================================================
 
 exports.updateOrderStatus = async (req, res) => {
@@ -280,6 +513,7 @@ exports.updateOrderStatus = async (req, res) => {
     const {
       status,
       isPaid,
+      paymentStatus,
     } = req.body;
 
     const order = await Order.findById(id);
@@ -291,29 +525,35 @@ exports.updateOrderStatus = async (req, res) => {
       });
     }
 
-    // ================================================
-    // CẬP NHẬT TRẠNG THÁI
-    // ================================================
+    // ==================================================
+    // STATUS
+    // ==================================================
 
     if (status !== undefined) {
       order.status = status;
     }
 
-    // ================================================
-    // CẬP NHẬT THANH TOÁN
-    // ================================================
+    // ==================================================
+    // IS PAID
+    // ==================================================
 
     if (isPaid !== undefined) {
       order.isPaid = isPaid;
+    }
+
+    // ==================================================
+    // PAYMENT STATUS
+    // ==================================================
+
+    if (paymentStatus !== undefined) {
+      order.paymentStatus = paymentStatus;
     }
 
     await order.save();
 
     return res.status(200).json({
       success: true,
-
       message: "Cập nhật đơn hàng thành công!",
-
       data: order,
     });
 
@@ -326,7 +566,6 @@ exports.updateOrderStatus = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Lỗi hệ thống khi cập nhật đơn hàng",
-
       error: error.message,
     });
   }
