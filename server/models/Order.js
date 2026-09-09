@@ -4,7 +4,6 @@ const orderSchema = new mongoose.Schema(
   {
     // ==========================================
     // USER
-    // Khách quét QR có thể không đăng nhập
     // ==========================================
     user: {
       type: mongoose.Schema.Types.ObjectId,
@@ -15,8 +14,6 @@ const orderSchema = new mongoose.Schema(
 
     // ==========================================
     // LOẠI ĐƠN
-    // Dine-in = ăn tại quán
-    // Takeaway = mang về
     // ==========================================
     orderType: {
       type: String,
@@ -26,7 +23,6 @@ const orderSchema = new mongoose.Schema(
 
     // ==========================================
     // MÃ BÀN
-    // Ví dụ: B01, B02, B03
     // ==========================================
     tableCode: {
       type: String,
@@ -37,45 +33,45 @@ const orderSchema = new mongoose.Schema(
     // ==========================================
     // DANH SÁCH MÓN
     // ==========================================
-    // ==========================================
-// DANH SÁCH MÓN
-// ==========================================
-items: [
-  {
-    product: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Product",
-      required: false,
-    },
+    items: [
+      {
+        product: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Product",
+          required: false,
+        },
 
-    name: {
-      type: String,
-      required: true,
-    },
+        name: {
+          type: String,
+          required: true,
+        },
 
-    price: {
-      type: Number,
-      required: true,
-    },
+        price: {
+          type: Number,
+          required: true,
+        },
 
-    quantity: {
-      type: Number,
-      required: true,
-      default: 1,
-    },
+        quantity: {
+          type: Number,
+          required: true,
+          default: 1,
+        },
 
-    // THÊM TRƯỜNG GHI CHÚ RIÊNG CHO TỪNG MÓN VÀO ĐÂY
-    note: {
-      type: String,
-      default: "",
-      trim: true,
-    },
-  },
-],
+        note: {
+          type: String,
+          default: "",
+          trim: true,
+        },
+
+        image: {
+          type: String,
+          default: "",
+        },
+      },
+    ],
 
     // ==========================================
     // THÔNG TIN KHÁCH
-    // Đơn tại bàn có thể không cần
     // ==========================================
     shippingInfo: {
       fullName: {
@@ -97,41 +93,61 @@ items: [
         type: String,
         default: "",
       },
+
+      customerName: {
+        type: String,
+        default: "",
+      },
+
+      customerPhone: {
+        type: String,
+        default: "",
+      },
     },
 
     // ==========================================
-    // PHƯƠNG THỨC THANH TOÁN
+    // GHI CHÚ ĐƠN
+    // ==========================================
+    note: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+
+    // ==========================================
+    // THANH TOÁN
     // ==========================================
     paymentMethod: {
       type: String,
       default: "COD",
     },
 
-    // ==========================================
-    // TỔNG TIỀN
-    // ==========================================
+    paymentStatus: {
+      type: String,
+      default: "UNPAID",
+    },
+
     totalPrice: {
       type: Number,
       required: true,
     },
 
     // ==========================================
-    // TRẠNG THÁI ĐƠN
+    // TRẠNG THÁI
     // ==========================================
     status: {
       type: String,
-      default: "Pending",
+      default: "pending",
     },
 
     // ==========================================
-    // ĐÃ THANH TOÁN CHƯA
+    // ĐÃ THANH TOÁN
     // ==========================================
     isPaid: {
       type: Boolean,
       default: false,
     },
   },
-
   {
     timestamps: true,
   }

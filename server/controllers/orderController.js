@@ -101,24 +101,62 @@ exports.createOrder = async (req, res) => {
     // TẠO ORDER
     // ==================================================
 
-    const orderData = {
-      user: userId,
+   const orderData = {
+  user: userId,
 
-      items: formattedItems,
+  // QUAN TRỌNG
+  orderType:
+    orderType ||
+    shippingInfo?.orderType ||
+    (tableCode ? "Dine-in" : "Takeaway"),
 
-      shippingInfo: finalShippingInfo,
+  // QUAN TRỌNG
+  tableCode:
+    tableCode ||
+    shippingInfo?.tableCode ||
+    "",
 
-      paymentMethod:
-        paymentMethod || "COD",
+  items: formattedItems,
 
-      totalPrice: finalTotal,
+  shippingInfo: {
+    fullName:
+      shippingInfo?.fullName ||
+      "",
 
-      note: note || "",
+    phone:
+      shippingInfo?.phone ||
+      "",
 
-      status: "pending",
+    address:
+      shippingInfo?.address ||
+      "",
 
-      isPaid: false,
-    };
+    note:
+      shippingInfo?.note ||
+      "",
+
+    customerName:
+      customerName ||
+      shippingInfo?.customerName ||
+      "",
+
+    customerPhone:
+      customerPhone ||
+      shippingInfo?.customerPhone ||
+      "",
+  },
+
+  paymentMethod:
+    paymentMethod || "COD",
+
+  totalPrice: finalTotal,
+
+  note: note || "",
+
+  status: "pending",
+
+  isPaid: false,
+};
 
     const newOrder = new Order(orderData);
 
@@ -214,6 +252,10 @@ exports.getOrders = async (req, res) => {
   try {
     const orders = await Order.find()
       .populate("user", "name email")
+      .populate(
+        "items.product",
+        "name price image imgUrl imageUrl"
+      )
       .sort({
         createdAt: -1,
       });
