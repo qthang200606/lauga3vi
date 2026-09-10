@@ -117,20 +117,49 @@ const orderSchema = new mongoose.Schema(
     // ==========================================
     // THANH TOÁN
     // ==========================================
-    paymentMethod: {
-      type: String,
-      default: "COD",
-    },
+   paymentMethod: {
+  type: String,
+  default: "COD",
+},
 
-    paymentStatus: {
-      type: String,
-      default: "UNPAID",
-    },
+paymentStatus: {
+  type: String,
+  default: "UNPAID",
+},
 
-    totalPrice: {
-      type: Number,
-      required: true,
-    },
+paymentCode: {
+  type: String,
+  unique: true,
+  sparse: true,
+  trim: true,
+},
+
+paidAmount: {
+  type: Number,
+  default: 0,
+},
+
+paymentTransactionId: {
+  type: String,
+  default: "",
+  trim: true,
+},
+
+paymentGateway: {
+  type: String,
+  default: "",
+  trim: true,
+},
+
+paidAt: {
+  type: Date,
+  default: null,
+},
+
+totalPrice: {
+  type: Number,
+  required: true,
+},
 
     // ==========================================
     // TRẠNG THÁI
