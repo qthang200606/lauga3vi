@@ -8,6 +8,7 @@ const categoryRoutes = require("./routes/categoryRoutes");
 const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
+const sepayRoutes = require("./routes/sepayRoutes");
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reservations", reservationRoutes);
+app.use("/api/sepay", sepayRoutes);
 
 // ====================
 // Server
