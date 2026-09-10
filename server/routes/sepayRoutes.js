@@ -10,20 +10,43 @@ const Order = require("../models/Order");
 // => LG3V-B02-8003DD
 // ======================================================
 
+// ======================================================
+// HÀM CHUẨN HÓA PAYMENT CODE (SỬA LỖI TAKEAWAY)
+// LG3V-B02-8003DD       => LG3V-B02-8003DD
+// LG3V-TAKEAWAY-3A7161 => LG3V-TAKEAWAY-3A7161
+// LG3VTAKEAWAY3A7161   => LG3V-TAKEAWAY-3A7161
+// ======================================================
+
 function normalizePaymentCode(code) {
   if (!code) return null;
 
-  const normalized = String(code)
-    .toUpperCase()
-    .replace(/[^A-Z0-9]/g, "");
+  // Nếu chuỗi đã có sẵn định dạng chuẩn dạng LG3V-xxx-xxx thì giữ nguyên
+  const raw = String(code).trim().toUpperCase();
+  const directMatch = raw.match(/LG3V-[A-Z0-9]+-[A-Z0-9]+/);
+  if (directMatch) return directMatch[0];
 
-  const match = normalized.match(
-    /LG3V([A-Z0-9]{3})([A-Z0-9]{5,8})/
-  );
+  // Loại bỏ tất cả ký tự đặc biệt chỉ giữ lại chữ và số
+  const normalized = raw.replace(/[^A-Z0-9]/g, "");
 
-  if (!match) return null;
+  // Match 1: Trường hợp Mang về (TAKEAWAY + 6 ký tự hex ở cuối)
+  const takeawayMatch = normalized.match(/LG3VTAKEAWAY([A-Z0-9]{5,8})/);
+  if (takeawayMatch) {
+    return `LG3V-TAKEAWAY-${takeawayMatch[1]}`;
+  }
 
-  return `LG3V-${match[1]}-${match[2]}`;
+  // Match 2: Trường hợp Tại bàn (B01, B02 + 6 ký tự hex ở cuối)
+  const tableMatch = normalized.match(/LG3VB(\d{2})([A-Z0-9]{5,8})/);
+  if (tableMatch) {
+    return `LG3V-B${tableMatch[1]}-${tableMatch[2]}`;
+  }
+
+  // Match 3: Fallback linh hoạt cho các mã bàn custom khác
+  const fallbackMatch = normalized.match(/LG3V([A-Z0-9]+?)([A-Z0-9]{6})$/);
+  if (fallbackMatch) {
+    return `LG3V-${fallbackMatch[1]}-${fallbackMatch[2]}`;
+  }
+
+  return null;
 }
 
 // ======================================================
