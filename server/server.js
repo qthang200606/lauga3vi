@@ -11,8 +11,10 @@ const productRoutes = require("./routes/productRoutes");
 const orderRoutes = require("./routes/orderRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 const sepayRoutes = require("./routes/sepayRoutes");
-const chatRoutes = require("./routes/chatRoutes"); // <--- Import Route Chat
+const chatRoutes = require("./routes/chatRoutes");
+
 const ChatMessage = require("./models/ChatMessage");
+const User = require("./models/User"); // <--- Import thêm Model User
 
 const app = express();
 const server = http.createServer(app);
@@ -76,20 +78,56 @@ io.on("connection", (socket) => {
 
   // Nhận và Phát tin nhắn Realtime + Lưu DB
   socket.on("send_message", async (data) => {
-    const { roomId, sender, senderName, message, time } = data;
+    const { roomId, sender, senderName, userId, message, time } = data;
 
     try {
+      let finalSenderName = senderName;
+
+      // Nếu là khách gửi, ưu tiên tìm tên thật từ DB User qua userId hoặc roomId
+      if (sender === "client") {
+        let dbUser = null;
+
+        if (userId) {
+          dbUser = await User.findById(userId);
+        } else if (roomId && roomId.startsWith("user_")) {
+          // Tự bóc tách ID nếu roomId có dạng user_6a78a54fa19178f4d61869f1
+          const extractedId = roomId.replace("user_", "");
+          if (mongoose.Types.ObjectId.isValid(extractedId)) {
+            dbUser = await User.findById(extractedId);
+          }
+        }
+
+        if (dbUser && dbUser.name) {
+          finalSenderName = dbUser.name; // Lấy đúng tên "Ngô Quang Thắng" trong MongoDB
+        } else {
+          finalSenderName = senderName || "Khách vãng lai";
+        }
+      } else {
+        finalSenderName = "Quản lý";
+      }
+
       // 1. Lưu tin nhắn vào MongoDB
-      const newMsg = new ChatMessage({ roomId,
-         sender,
-         senderName: senderName || (sender === "admin" ? "Quản lý" : "Khách vãng lai"),
-          message, time });
+      const newMsg = new ChatMessage({
+        roomId,
+        sender,
+        senderName: finalSenderName,
+        message,
+        time,
+      });
       await newMsg.save();
 
-      // 2. Phát tin nhắn đến tất cả client trong room đó
+      // 2. Nếu lấy được tên thật từ DB, tự đồng bộ lại tên cho toàn bộ tin nhắn cũ của room này
+      if (sender === "client" && finalSenderName !== "Khách vãng lai") {
+        await ChatMessage.updateMany(
+          { roomId },
+          { $set: { senderName: finalSenderName } }
+        );
+      }
+
+      // 3. Phát tin nhắn đến tất cả client trong room đó
       io.to(roomId).emit("receive_message", newMsg);
 
-      // 3. Bắn thông báo cho Admin nếu là khách gửi
+      // 4. Bắn thông báo cho Admin nếu là khách gửi
       if (sender === "client") {
         io.emit("admin_notification", { roomId, lastMessage: message });
       }
@@ -112,7 +150,7 @@ app.use("/api/products", productRoutes);
 app.use("/api/orders", orderRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/sepay", sepayRoutes);
-app.use("/api/chat", chatRoutes); // <--- Đã đăng ký route Chat đầy đủ
+app.use("/api/chat", chatRoutes);
 
 // ====================
 // Server Start
