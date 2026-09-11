@@ -1,48 +1,55 @@
 const ChatMessage = require("../models/ChatMessage");
 
-// 1. Lấy danh sách phòng chat duy nhất + Tự động join lấy tên thật từ User DB
+// 1. Lấy danh sách phòng chat duy nhất + Lookup trực tiếp sang bảng users lấy tên thật
 exports.getChatRooms = async (req, res) => {
   try {
     const rooms = await ChatMessage.aggregate([
       // Bước 1: Sắp xếp tin nhắn mới nhất lên đầu
       { $sort: { createdAt: -1 } },
 
-      // Bước 2: Nhóm theo roomId để lấy tin nhắn cuối
+      // Bước 2: Nhóm theo roomId
       {
         $group: {
           _id: "$roomId",
           lastMessage: { $first: "$message" },
-          senderName: { $first: "$senderName" },
           userId: { $first: "$userId" },
           lastTime: { $first: "$createdAt" },
           sender: { $first: "$sender" }
         }
       },
 
-      // Bước 3: Tách lấy Object ID từ roomId nếu roomId dạng "user_6a78a54..."
+      // Bước 3: Chuyển đổi ID về kiểu ObjectId chuẩn để Lookup
       {
         $addFields: {
           extractedUserId: {
             $cond: {
-              if: { $regexMatch: { input: "$_id", regex: /^user_[0-9a-fA-F]{24}$/ } },
-              then: { $toObjectId: { $substrCP: ["$_id", 5, 24] } },
-              else: "$userId"
+              // Nếu đã có userId dạng ObjectId/String
+              if: { $and: [{ $ne: ["$userId", null] }, { $ne: ["$userId", ""] }] },
+              then: { $toObjectId: "$userId" },
+              else: {
+                $cond: {
+                  // Nếu không có userId nhưng roomId dạng "user_24kytuhex"
+                  if: { $regexMatch: { input: "$_id", regex: /^user_[0-9a-fA-F]{24}$/ } },
+                  then: { $toObjectId: { $substrCP: ["$_id", 5, 24] } },
+                  else: null
+                }
+              }
             }
           }
         }
       },
 
-      // Bước 4: Lookup thẳng sang bảng `users` dựa vào ID vừa bóc tách
+      // Bước 4: Lookup trực tiếp sang collection `users`
       {
         $lookup: {
-          from: "users", // Tên collection trong MongoDB
+          from: "users",
           localField: "extractedUserId",
           foreignField: "_id",
           as: "userInfo"
         }
       },
 
-      // Bước 5: Đè lại senderName nếu tìm thấy User thật trong DB
+      // Bước 5: Bỏ hẳn senderName cũ, dùng senderName động lấy từ DB users
       {
         $project: {
           _id: 1,
@@ -53,13 +60,13 @@ exports.getChatRooms = async (req, res) => {
             $cond: {
               if: { $gt: [{ $size: "$userInfo" }, 0] },
               then: { $arrayElemAt: ["$userInfo.name", 0] }, // Lấy tên thật từ User DB
-              else: "$senderName" // Giữ nguyên tên cũ nếu không phải user
+              else: "Khách vãng lai" // Chỉ bị nếu không phải tài khoản trong DB
             }
           }
         }
       },
 
-      // Bước 6: Sắp xếp danh sách phòng theo thời gian nhắn mới nhất
+      // Bước 6: Sắp xếp danh sách phòng mới nhất lên trên
       { $sort: { lastTime: -1 } }
     ]);
 
