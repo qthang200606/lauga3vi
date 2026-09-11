@@ -4,6 +4,7 @@ const chatMessageSchema = new mongoose.Schema(
   {
     roomId: { type: String, required: true, index: true },
     sender: { type: String, enum: ["client", "admin"], required: true },
+    senderName: { type: String, default: "Khách vãng lai" },
     message: { type: String, required: true },
     time: { type: String },
   },
