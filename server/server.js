@@ -14,7 +14,7 @@ const sepayRoutes = require("./routes/sepayRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 
 const ChatMessage = require("./models/ChatMessage");
-const User = require("./models/User"); // <--- Import thêm Model User
+const User = require("./models/User");
 
 const app = express();
 const server = http.createServer(app);
@@ -70,53 +70,53 @@ mongoose
 io.on("connection", (socket) => {
   console.log("⚡ Người dùng kết nối Socket:", socket.id);
 
-  // Tham gia phòng chat
   socket.on("join_room", (roomId) => {
     socket.join(roomId);
     console.log(`📌 Socket ${socket.id} đã vào phòng: ${roomId}`);
   });
 
-  // Nhận và Phát tin nhắn Realtime + Lưu DB
   socket.on("send_message", async (data) => {
     const { roomId, sender, senderName, userId, message, time } = data;
 
     try {
-      let finalSenderName = senderName;
+      let finalSenderName = "Khách vãng lai";
+      let validUserId = userId || null;
 
-      // Nếu là khách gửi, ưu tiên tìm tên thật từ DB User qua userId hoặc roomId
       if (sender === "client") {
-        let dbUser = null;
-
-        if (userId) {
-          dbUser = await User.findById(userId);
-        } else if (roomId && roomId.startsWith("user_")) {
-          // Tự bóc tách ID nếu roomId có dạng user_6a78a54fa19178f4d61869f1
-          const extractedId = roomId.replace("user_", "");
-          if (mongoose.Types.ObjectId.isValid(extractedId)) {
-            dbUser = await User.findById(extractedId);
-          }
+        // Tự lấy ID từ roomId nếu userId truyền lên bị null
+        if (!validUserId && roomId && roomId.startsWith("user_")) {
+          validUserId = roomId.replace("user_", "").trim();
         }
 
-        if (dbUser && dbUser.name) {
-          finalSenderName = dbUser.name; // Lấy đúng tên "Ngô Quang Thắng" trong MongoDB
+        if (validUserId && mongoose.Types.ObjectId.isValid(validUserId)) {
+          const dbUser = await User.findById(validUserId);
+          if (dbUser && dbUser.name) {
+            finalSenderName = dbUser.name;
+          } else {
+            console.log("⚠️ Không tìm thấy User trong DB với ID:", validUserId);
+          }
         } else {
-          finalSenderName = senderName || "Khách vãng lai";
+          // Nếu không phải ObjectID chuẩn thì dùng senderName từ FE gửi lên
+          if (senderName && senderName !== "Khách vãng lai") {
+            finalSenderName = senderName;
+          }
         }
       } else {
         finalSenderName = "Quản lý";
       }
 
-      // 1. Lưu tin nhắn vào MongoDB
+      // 1. Lưu tin nhắn vào MongoDB (Lưu cả userId)
       const newMsg = new ChatMessage({
         roomId,
         sender,
         senderName: finalSenderName,
+        userId: validUserId && mongoose.Types.ObjectId.isValid(validUserId) ? validUserId : null,
         message,
         time,
       });
       await newMsg.save();
 
-      // 2. Nếu lấy được tên thật từ DB, tự đồng bộ lại tên cho toàn bộ tin nhắn cũ của room này
+      // 2. Đồng bộ tên lại cho tất cả tin nhắn cũ trong phòng
       if (sender === "client" && finalSenderName !== "Khách vãng lai") {
         await ChatMessage.updateMany(
           { roomId },
@@ -124,10 +124,10 @@ io.on("connection", (socket) => {
         );
       }
 
-      // 3. Phát tin nhắn đến tất cả client trong room đó
+      // 3. Phát tin nhắn đến client
       io.to(roomId).emit("receive_message", newMsg);
 
-      // 4. Bắn thông báo cho Admin nếu là khách gửi
+      // 4. Bắn thông báo cho Admin
       if (sender === "client") {
         io.emit("admin_notification", { roomId, lastMessage: message });
       }
