@@ -15,9 +15,16 @@ exports.getCurrentShift = async (req, res) => {
 };
 
 // 2. MỞ CA LÀM VIỆC MỚI
+// 2. MỞ CA LÀM VIỆC MỚI
 exports.openShift = async (req, res) => {
   try {
-    const { initialCash, openedBy } = req.body;
+    // Nhận linh hoạt userId hoặc openedBy từ Frontend gửi lên
+    const { initialCash, userId, openedBy } = req.body;
+    const staffId = userId || openedBy;
+
+    if (!staffId) {
+      return res.status(400).json({ message: "Thiếu thông tin người mở ca (userId)!" });
+    }
 
     // Kiểm tra xem đã có ca nào đang mở chưa
     const activeShift = await Shift.findOne({ status: "open" });
@@ -27,18 +34,22 @@ exports.openShift = async (req, res) => {
 
     const newShift = new Shift({
       initialCash: Number(initialCash) || 0,
-      openedBy,
+      openedBy: staffId, // Đảm bảo gán đúng ObjectId vào trường openedBy
       openedAt: new Date(),
       status: "open"
     });
 
     await newShift.save();
+
+    // Populate thông tin người mở ca để trả về Frontend render ngay
+    await newShift.populate("openedBy", "name");
+
     res.status(201).json({ message: "Mở ca thành công!", shift: newShift });
   } catch (error) {
+    console.error("Lỗi chi tiết khi mở ca:", error);
     res.status(500).json({ message: "Lỗi mở ca làm việc", error: error.message });
   }
 };
-
 // 3. LẤY BÁO CÁO XEM TRƯỚC (PREVIEW) TRƯỚC KHI BẤM CHỐT CA
 exports.getShiftReportPreview = async (req, res) => {
   try {
