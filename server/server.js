@@ -12,7 +12,7 @@ const orderRoutes = require("./routes/orderRoutes");
 const reservationRoutes = require("./routes/reservationRoutes");
 const sepayRoutes = require("./routes/sepayRoutes");
 const chatRoutes = require("./routes/chatRoutes");
-
+const shiftRoutes = require("./routes/shiftRoutes");
 const ChatMessage = require("./models/ChatMessage");
 const User = require("./models/User");
 
@@ -144,7 +144,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/reservations", reservationRoutes);
 app.use("/api/sepay", sepayRoutes);
 app.use("/api/chat", chatRoutes);
-
+app.use("/api/shifts", shiftRoutes);
 // ====================
 // Server Start
 // ====================
