@@ -15,4 +15,6 @@ router.get("/preview-report", shiftController.getShiftReportPreview);
 router.post("/close", shiftController.closeShift);
 // Lấy lịch sử ca đã chốt
 router.get("/history", shiftController.getShiftHistory);
+// Lấy chi tiết 1 ca để xem/in lại phiếu
+router.get("/detail/:shiftId", shiftController.getShiftDetail);
 module.exports = router;
