@@ -212,3 +212,17 @@ exports.closeShift = async (req, res) => {
     res.status(500).json({ message: "Lỗi khi chốt ca", error: error.message });
   }
 };
+
+// 5. LẤY LỊCH SỬ CÁC CA ĐÃ CHỐT
+exports.getShiftHistory = async (req, res) => {
+  try {
+    const shifts = await Shift.find({ status: "closed" })
+      .populate("openedBy", "name")
+      .populate("closedBy", "name")
+      .sort({ closedAt: -1 }); // Ca mới nhất xếp lên đầu
+
+    res.status(200).json(shifts);
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi lấy lịch sử ca làm việc", error: error.message });
+  }
+};
