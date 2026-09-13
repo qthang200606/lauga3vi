@@ -61,13 +61,17 @@ exports.getShiftReportPreview = async (req, res) => {
     const startTime = activeShift.openedAt;
     const endTime = new Date();
 
-    // Lấy tất cả các đơn hàng thành công phát sinh trong ca
+    // Lấy các đơn đã hoàn thành/thanh toán trong khoảng thời gian của ca
+    // Kiểm tra thời điểm thanh toán (paidAt) hoặc cập nhật đơn (updatedAt) nằm trong ca
     const orders = await Order.find({
-      createdAt: { $gte: startTime, $lte: endTime },
-      status: "completed"
+      status: { $in: ["completed", "Hoàn thành", "paid", "success", "da_thanh_toan"] },
+      $or: [
+        { paidAt: { $gte: startTime, $lte: endTime } },
+        { updatedAt: { $gte: startTime, $lte: endTime } },
+        { createdAt: { $gte: startTime, $lte: endTime } }
+      ]
     }).populate("items.product");
 
-    // --- Tính toán dữ liệu theo mẫu phiếu iPOS ---
     const initialCash = activeShift.initialCash || 0;
     let totalGross = 0;
     let totalDiscount = 0;
@@ -78,25 +82,34 @@ exports.getShiftReportPreview = async (req, res) => {
     const categoryStats = {};
 
     orders.forEach((order) => {
-      totalGross += order.totalAmount || 0;
-      totalDiscount += order.discountAmount || 0;
+      // 1. Sửa trường lấy tổng tiền chuẩn theo DB: totalPrice (hoặc fallback các tên khác)
+      const orderAmount = order.totalPrice || order.totalAmount || order.total || 0;
+      totalGross += orderAmount;
+      totalDiscount += order.discountAmount || order.discount || 0;
 
-      // Phân loại Phương thức thanh toán
-      const method = (order.paymentMethod || "").toLowerCase();
-      if (method === "cash" || method === "tien_mat") {
-        cashSales += order.totalAmount || 0;
+      // 2. Nhận diện phương thức thanh toán "CASH"
+      const method = (order.paymentMethod || "").toUpperCase();
+      if (
+        method === "CASH" ||
+        method.includes("CASH") ||
+        method.includes("TIEN_MAT") ||
+        method.includes("TIỀN MẶT") ||
+        method.includes("COD")
+      ) {
+        cashSales += orderAmount;
         cashTxCount++;
       } else {
-        transferSales += order.totalAmount || 0;
+        transferSales += orderAmount;
         transferTxCount++;
       }
 
-      // Thống kê Doanh thu theo Nhóm món
+      // 3. Thống kê Doanh thu theo Nhóm món
       if (order.items && Array.isArray(order.items)) {
         order.items.forEach((item) => {
           const categoryName = item.product?.categoryName || item.category || "UnCategory";
           const qty = item.quantity || 1;
-          const revenue = (item.price || 0) * qty;
+          const price = item.price || 0;
+          const revenue = price * qty;
 
           if (!categoryStats[categoryName]) {
             categoryStats[categoryName] = { quantity: 0, revenue: 0 };
@@ -155,16 +168,30 @@ exports.closeShift = async (req, res) => {
     }
 
     const orders = await Order.find({
-      createdAt: { $gte: shift.openedAt, $lte: new Date() },
-      status: "completed"
+      status: { $in: ["completed", "Hoàn thành", "paid", "success", "da_thanh_toan"] },
+      $or: [
+        { paidAt: { $gte: shift.openedAt, $lte: new Date() } },
+        { updatedAt: { $gte: shift.openedAt, $lte: new Date() } },
+        { createdAt: { $gte: shift.openedAt, $lte: new Date() } }
+      ]
     });
 
     let cashSales = 0;
     let transferSales = 0;
     orders.forEach((o) => {
-      const method = (o.paymentMethod || "").toLowerCase();
-      if (method === "cash" || method === "tien_mat") cashSales += o.totalAmount || 0;
-      else transferSales += o.totalAmount || 0;
+      const orderAmount = o.totalPrice || o.totalAmount || o.total || 0;
+      const method = (o.paymentMethod || "").toUpperCase();
+      if (
+        method === "CASH" ||
+        method.includes("CASH") ||
+        method.includes("TIEN_MAT") ||
+        method.includes("TIỀN MẶT") ||
+        method.includes("COD")
+      ) {
+        cashSales += orderAmount;
+      } else {
+        transferSales += orderAmount;
+      }
     });
 
     const expectedCash = shift.initialCash + cashSales - (shift.totalExpenses || 0);
