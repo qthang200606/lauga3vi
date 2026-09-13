@@ -213,16 +213,139 @@ exports.closeShift = async (req, res) => {
   }
 };
 
-// 5. LẤY LỊCH SỬ CÁC CA ĐÃ CHỐT
+// 5. LẤY LỊCH SỬ CÁC CA ĐÃ CHỐT (CÓ BỘ LỌC)
 exports.getShiftHistory = async (req, res) => {
   try {
-    const shifts = await Shift.find({ status: "closed" })
+    const { startDate, endDate, staffName } = req.query;
+    let query = { status: "closed" };
+
+    // Lọc theo khoảng thời gian chốt ca
+    if (startDate || endDate) {
+      query.closedAt = {};
+      if (startDate) query.closedAt.$gte = new Date(startDate);
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        query.closedAt.$lte = end;
+      }
+    }
+
+    const shifts = await Shift.find(query)
       .populate("openedBy", "name")
       .populate("closedBy", "name")
-      .sort({ closedAt: -1 }); // Ca mới nhất xếp lên đầu
+      .sort({ closedAt: -1 });
 
-    res.status(200).json(shifts);
+    // Lọc theo tên thu ngân nếu có
+    let filteredShifts = shifts;
+    if (staffName) {
+      filteredShifts = shifts.filter((s) => {
+        const name = s.openedBy?.name || s.closedBy?.name || "";
+        return name.toLowerCase().includes(staffName.toLowerCase());
+      });
+    }
+
+    res.status(200).json(filteredShifts);
   } catch (error) {
     res.status(500).json({ message: "Lỗi lấy lịch sử ca làm việc", error: error.message });
+  }
+};
+
+// 6. LẤY CHI TIẾT 1 CA ĐỂ IN LẠI PHIẾU
+exports.getShiftDetail = async (req, res) => {
+  try {
+    const { shiftId } = req.params;
+    const shift = await Shift.findById(shiftId)
+      .populate("openedBy", "name")
+      .populate("closedBy", "name");
+
+    if (!shift) {
+      return res.status(404).json({ message: "Không tìm thấy ca làm việc!" });
+    }
+
+    // Lấy danh sách đơn hàng đã thanh toán trong khoảng thời gian ca này
+    const orders = await Order.find({
+      status: { $in: ["completed", "Hoàn thành", "paid", "success", "da_thanh_toan"] },
+      $or: [
+        { paidAt: { $gte: shift.openedAt, $lte: shift.closedAt } },
+        { updatedAt: { $gte: shift.openedAt, $lte: shift.closedAt } },
+        { createdAt: { $gte: shift.openedAt, $lte: shift.closedAt } }
+      ]
+    }).populate("items.product");
+
+    let totalGross = 0;
+    let totalDiscount = 0;
+    let cashSales = 0;
+    let transferSales = 0;
+    let cashTxCount = 0;
+    let transferTxCount = 0;
+    const categoryStats = {};
+
+    orders.forEach((order) => {
+      const orderAmount = order.totalPrice || order.totalAmount || order.total || 0;
+      totalGross += orderAmount;
+      totalDiscount += order.discountAmount || order.discount || 0;
+
+      const method = (order.paymentMethod || "").toUpperCase();
+      if (
+        method === "CASH" ||
+        method.includes("CASH") ||
+        method.includes("TIEN_MAT") ||
+        method.includes("TIỀN MẶT") ||
+        method.includes("COD")
+      ) {
+        cashSales += orderAmount;
+        cashTxCount++;
+      } else {
+        transferSales += orderAmount;
+        transferTxCount++;
+      }
+
+      if (order.items && Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          const categoryName = item.product?.categoryName || item.category || "UnCategory";
+          const qty = item.quantity || 1;
+          const price = item.price || 0;
+
+          if (!categoryStats[categoryName]) {
+            categoryStats[categoryName] = { quantity: 0, revenue: 0 };
+          }
+          categoryStats[categoryName].quantity += qty;
+          categoryStats[categoryName].revenue += price * qty;
+        });
+      }
+    });
+
+    const netSales = totalGross - totalDiscount;
+    const totalOrders = orders.length;
+
+    const reportData = {
+      shiftId: shift._id,
+      openedAt: shift.openedAt,
+      closedAt: shift.closedAt,
+      openedBy: shift.openedBy?.name || "Thu ngân",
+      initialCash: shift.initialCash || 0,
+      totalGross,
+      totalDiscount,
+      netSales,
+      totalOrders,
+      avgOrderValue: totalOrders > 0 ? Math.round(netSales / totalOrders) : 0,
+      paymentMethods: {
+        transfer: { count: transferTxCount, amount: transferSales },
+        cash: { count: cashTxCount, amount: cashSales }
+      },
+      totalExpenses: shift.totalExpenses || 0,
+      expectedCashInDrawer: (shift.initialCash || 0) + cashSales - (shift.totalExpenses || 0),
+      realCashInDrawer: shift.realCashInDrawer,
+      difference: shift.difference,
+      categoryStats: Object.keys(categoryStats).map((cat) => ({
+        name: cat,
+        quantity: categoryStats[cat].quantity,
+        revenue: categoryStats[cat].revenue
+      }))
+    };
+
+    res.status(200).json(reportData);
+  } catch (error) {
+    res.status(500).json({ message: "Lỗi lấy chi tiết ca", error: error.message });
   }
 };
