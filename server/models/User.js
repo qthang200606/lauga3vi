@@ -28,8 +28,14 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ["customer", "admin"],
+      enum: ["customer", "employee", "admin"],
       default: "customer",
+    },
+
+    // Tài khoản có đang được phép đăng nhập không
+    isActive: {
+      type: Boolean,
+      default: true,
     },
 
     googleId: {

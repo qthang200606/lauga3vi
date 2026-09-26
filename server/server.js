@@ -13,7 +13,9 @@ const reservationRoutes = require("./routes/reservationRoutes");
 const sepayRoutes = require("./routes/sepayRoutes");
 const chatRoutes = require("./routes/chatRoutes");
 const shiftRoutes = require("./routes/shiftRoutes");
+const attendanceRoutes = require("./routes/attendanceRoutes");
 const ChatMessage = require("./models/ChatMessage");
+const employeeRoutes = require("./routes/employeeRoutes");
 const User = require("./models/User");
 
 const app = express();
@@ -145,6 +147,8 @@ app.use("/api/reservations", reservationRoutes);
 app.use("/api/sepay", sepayRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/shifts", shiftRoutes);
+app.use("/api/attendance", attendanceRoutes);
+app.use("/api/employees", employeeRoutes);
 // ====================
 // Server Start
 // ====================

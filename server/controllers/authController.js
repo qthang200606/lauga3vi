@@ -8,9 +8,9 @@ const googleClient = new OAuth2Client(
 );
 
 
-/* =========================================================
-   GENERATE JWT
-========================================================= */
+// =========================================================
+// GENERATE JWT
+// =========================================================
 
 const generateToken = (user) => {
   return jwt.sign(
@@ -28,9 +28,9 @@ const generateToken = (user) => {
 };
 
 
-/* =========================================================
-   RESPONSE USER
-========================================================= */
+// =========================================================
+// RESPONSE USER
+// =========================================================
 
 const formatUser = (user) => ({
   id: user._id,
@@ -38,13 +38,17 @@ const formatUser = (user) => ({
   email: user.email,
   phone: user.phone || "",
   role: user.role,
+  isActive: user.isActive !== false,
 });
 
 
-/* =========================================================
-   REGISTER
-   POST /api/auth/register
-========================================================= */
+// =========================================================
+// REGISTER
+// POST /api/auth/register
+//
+// Đăng ký công khai = CUSTOMER
+// Không cho client tự chọn role
+// =========================================================
 
 exports.register = async (req, res) => {
   try {
@@ -91,8 +95,10 @@ exports.register = async (req, res) => {
 
       phone: phone?.trim() || "",
 
-      // Đăng ký công khai luôn là customer
+      // TUYỆT ĐỐI KHÔNG lấy role từ req.body
       role: "customer",
+
+      isActive: true,
 
       authProvider: "local",
     });
@@ -117,10 +123,15 @@ exports.register = async (req, res) => {
 };
 
 
-/* =========================================================
-   LOGIN
-   POST /api/auth/login
-========================================================= */
+// =========================================================
+// LOGIN
+// POST /api/auth/login
+//
+// Dùng chung cho:
+// customer
+// employee
+// admin
+// =========================================================
 
 exports.login = async (req, res) => {
   try {
@@ -149,9 +160,20 @@ exports.login = async (req, res) => {
       });
     }
 
-    /*
-      User tạo bằng Google nhưng chưa có password.
-    */
+    // =========================================
+    // TÀI KHOẢN BỊ KHÓA
+    // =========================================
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        message:
+          "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+      });
+    }
+
+    // =========================================
+    // TÀI KHOẢN GOOGLE
+    // =========================================
 
     if (!user.password) {
       return res.status(400).json({
@@ -191,10 +213,10 @@ exports.login = async (req, res) => {
 };
 
 
-/* =========================================================
-   GOOGLE LOGIN
-   POST /api/auth/google
-========================================================= */
+// =========================================================
+// GOOGLE LOGIN
+// POST /api/auth/google
+// =========================================================
 
 exports.googleLogin = async (req, res) => {
   try {
@@ -202,17 +224,13 @@ exports.googleLogin = async (req, res) => {
 
     if (!credential) {
       return res.status(400).json({
-        message: "Không nhận được thông tin từ Google.",
+        message:
+          "Không nhận được thông tin từ Google.",
       });
     }
 
-    /*
-      Xác minh Google ID Token.
-    */
-
     const ticket = await googleClient.verifyIdToken({
       idToken: credential,
-
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
@@ -220,7 +238,8 @@ exports.googleLogin = async (req, res) => {
 
     if (!payload) {
       return res.status(401).json({
-        message: "Thông tin Google không hợp lệ.",
+        message:
+          "Thông tin Google không hợp lệ.",
       });
     }
 
@@ -249,20 +268,13 @@ exports.googleLogin = async (req, res) => {
       .trim()
       .toLowerCase();
 
-
-    /* ==========================================
-       1. Tìm bằng Google ID
-    ========================================== */
+    // =========================================
+    // TÌM USER
+    // =========================================
 
     let user = await User.findOne({
       googleId,
     });
-
-
-    /* ==========================================
-       2. Nếu chưa có Google ID
-          kiểm tra email đã tồn tại chưa
-    ========================================== */
 
     if (!user) {
       user = await User.findOne({
@@ -270,11 +282,10 @@ exports.googleLogin = async (req, res) => {
       });
     }
 
-
-    /* ==========================================
-       3. Chưa có tài khoản
-          -> tạo CUSTOMER mới
-    ========================================== */
+    // =========================================
+    // CHƯA CÓ USER
+    // => TẠO CUSTOMER
+    // =========================================
 
     if (!user) {
       user = await User.create({
@@ -290,30 +301,42 @@ exports.googleLogin = async (req, res) => {
 
         role: "customer",
 
+        isActive: true,
+
         googleId,
 
         authProvider: "google",
       });
     }
 
-    /*
-      Email đã đăng ký trước bằng local:
-      liên kết Google ID vào tài khoản đó.
+    // =========================================
+    // USER ĐÃ TỒN TẠI
+    // =========================================
 
-      KHÔNG thay đổi role.
-      Nếu tài khoản đang là admin thì vẫn admin.
-    */
+    else {
+      // Tài khoản bị khóa
+      if (user.isActive === false) {
+        return res.status(403).json({
+          message:
+            "Tài khoản đã bị khóa. Vui lòng liên hệ quản trị viên.",
+        });
+      }
 
-    else if (!user.googleId) {
-      user.googleId = googleId;
+      // Nhân viên KHÔNG đăng nhập Google
+      if (user.role === "employee") {
+        return res.status(403).json({
+          message:
+            "Tài khoản nhân viên phải đăng nhập bằng email và mật khẩu do quản trị viên cấp.",
+        });
+      }
 
-      await user.save();
+      // Nếu chưa có Google ID thì liên kết
+      if (!user.googleId) {
+        user.googleId = googleId;
+
+        await user.save();
+      }
     }
-
-
-    /* ==========================================
-       JWT CỦA LẨU GÀ 3 VỊ
-    ========================================== */
 
     const token = generateToken(user);
 
@@ -338,10 +361,10 @@ exports.googleLogin = async (req, res) => {
 };
 
 
-/* =========================================================
-   GET ME
-   GET /api/auth/me
-========================================================= */
+// =========================================================
+// GET ME
+// GET /api/auth/me
+// =========================================================
 
 exports.getMe = async (req, res) => {
   try {
