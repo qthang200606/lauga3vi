@@ -6,11 +6,11 @@ const Attendance = require("../models/Attendance");
 // ================================
 
 // TODO: thay bằng tọa độ thật của quán
-const RESTAURANT_LAT = 15.9749;
-const RESTAURANT_LNG = 108.2505;
+const RESTAURANT_LAT = 15.975479675865323;
+const RESTAURANT_LNG = 108.25442895323303;
 
 // Cho phép chấm công trong bán kính 100m
-const MAX_DISTANCE = 30000;
+const MAX_DISTANCE = 300000;
 
 // Mã QR cố định
 const ATTENDANCE_QR_CODE = "LAUGA3VI_ATTENDANCE_2026";
