@@ -10,7 +10,7 @@ const RESTAURANT_LAT = 15.9749;
 const RESTAURANT_LNG = 108.2505;
 
 // Cho phép chấm công trong bán kính 100m
-const MAX_DISTANCE = 100;
+const MAX_DISTANCE = 30000;
 
 // Mã QR cố định
 const ATTENDANCE_QR_CODE = "LAUGA3VI_ATTENDANCE_2026";
