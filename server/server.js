@@ -17,6 +17,7 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const ChatMessage = require("./models/ChatMessage");
 const employeeRoutes = require("./routes/employeeRoutes");
 const User = require("./models/User");
+const faceRoutes = require("./routes/faceRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -149,6 +150,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/shifts", shiftRoutes);
 app.use("/api/attendance", attendanceRoutes);
 app.use("/api/employees", employeeRoutes);
+app.use("/api/face", faceRoutes);
 // ====================
 // Server Start
 // ====================

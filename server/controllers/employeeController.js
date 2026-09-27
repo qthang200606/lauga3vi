@@ -1,5 +1,13 @@
 const User = require("../models/User");
 const bcrypt = require("bcryptjs");
+const {
+  createLivenessSession,
+  getLivenessResult,
+  enrollFace,
+  deleteEmployeeFaces,
+  getEmployeeFaces,
+  LIVENESS_THRESHOLD,
+} = require("../services/rekognitionService");
 
 // =====================================================
 // GET ALL EMPLOYEES
@@ -251,6 +259,327 @@ exports.changeEmployeePassword = async (
 
     res.status(500).json({
       message: "Không thể đổi mật khẩu.",
+    });
+  }
+};
+// =====================================================
+// CREATE FACE LIVENESS SESSION
+// =====================================================
+
+exports.createFaceEnrollmentSession = async (
+  req,
+  res
+) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await User.findOne({
+      _id: id,
+      role: "employee",
+    });
+
+    if (!employee) {
+      return res.status(404).json({
+        message: "Không tìm thấy nhân viên.",
+      });
+    }
+
+    if (!employee.isActive) {
+      return res.status(400).json({
+        message:
+          "Tài khoản nhân viên đang bị khóa.",
+      });
+    }
+
+    const session =
+      await createLivenessSession();
+
+    res.json({
+      success: true,
+      data: session,
+    });
+  } catch (error) {
+    console.error(
+      "CREATE FACE SESSION ERROR:",
+      error
+    );
+
+    res.status(500).json({
+      message:
+        "Không thể tạo phiên xác thực khuôn mặt.",
+    });
+  }
+};
+// =====================================================
+// COMPLETE FACE ENROLLMENT
+// =====================================================
+
+exports.completeFaceEnrollment = async (
+  req,
+  res
+) => {
+  try {
+    const { id } = req.params;
+    const { sessionId } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({
+        message:
+          "Thiếu mã phiên xác thực.",
+      });
+    }
+
+    const employee = await User.findOne({
+      _id: id,
+      role: "employee",
+    });
+
+    if (!employee) {
+      return res.status(404).json({
+        message: "Không tìm thấy nhân viên.",
+      });
+    }
+
+    if (!employee.isActive) {
+      return res.status(400).json({
+        message:
+          "Tài khoản nhân viên đang bị khóa.",
+      });
+    }
+
+    const result =
+      await getLivenessResult(
+        sessionId
+      );
+
+    if (result.Status !== "SUCCEEDED") {
+      return res.status(400).json({
+        message:
+          "Xác thực người thật thất bại.",
+        status: result.Status,
+      });
+    }
+
+    const confidence =
+      Number(result.Confidence || 0);
+
+    if (
+      confidence <
+      LIVENESS_THRESHOLD
+    ) {
+      return res.status(400).json({
+        message:
+          "Độ tin cậy xác thực người thật chưa đạt yêu cầu.",
+        confidence,
+      });
+    }
+
+    if (
+      !result.ReferenceImage ||
+      !result.ReferenceImage.Bytes
+    ) {
+      return res.status(400).json({
+        message:
+          "Không lấy được ảnh tham chiếu khuôn mặt.",
+      });
+    }
+
+    // UserId AWS không chứa email/name
+    // chỉ dùng ID MongoDB để liên kết employee.
+    const rekognitionUserId =
+      `employee-${employee._id.toString()}`;
+
+    // Nếu đăng ký lại → xóa face cũ
+    if (
+      employee.faceVerification
+        ?.rekognitionUserId
+    ) {
+      try {
+        await deleteEmployeeFaces(
+          employee.faceVerification
+            .rekognitionUserId
+        );
+      } catch (error) {
+        console.error(
+          "DELETE OLD FACE ERROR:",
+          error
+        );
+      }
+    }
+
+    const enrolled =
+      await enrollFace({
+        rekognitionUserId,
+        imageBytes:
+          result.ReferenceImage.Bytes,
+      });
+
+    employee.faceVerification = {
+      enrolled: true,
+
+      provider:
+        "aws_rekognition",
+
+      rekognitionUserId,
+
+      faceIds: [
+        enrolled.faceId,
+      ],
+
+      enrolledAt: new Date(),
+
+      lastVerifiedAt: null,
+
+      updatedAt: new Date(),
+    };
+
+    await employee.save();
+
+    return res.json({
+      success: true,
+
+      message:
+        "Đăng ký khuôn mặt thành công.",
+
+      data: {
+        enrolled: true,
+
+        enrolledAt:
+          employee.faceVerification
+            .enrolledAt,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "COMPLETE FACE ENROLLMENT ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        "Không thể đăng ký khuôn mặt.",
+    });
+  }
+};
+// =====================================================
+// GET FACE STATUS
+// =====================================================
+
+exports.getFaceStatus = async (
+  req,
+  res
+) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await User.findOne({
+      _id: id,
+      role: "employee",
+    }).select(
+      "name email faceVerification"
+    );
+
+    if (!employee) {
+      return res.status(404).json({
+        message: "Không tìm thấy nhân viên.",
+      });
+    }
+
+    return res.json({
+      success: true,
+
+      data: {
+        enrolled:
+          employee.faceVerification
+            ?.enrolled === true,
+
+        enrolledAt:
+          employee.faceVerification
+            ?.enrolledAt || null,
+
+        lastVerifiedAt:
+          employee.faceVerification
+            ?.lastVerifiedAt || null,
+      },
+    });
+  } catch (error) {
+    console.error(
+      "GET FACE STATUS ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        "Không thể lấy trạng thái khuôn mặt.",
+    });
+  }
+};
+// =====================================================
+// DELETE FACE
+// =====================================================
+
+exports.deleteFace = async (
+  req,
+  res
+) => {
+  try {
+    const { id } = req.params;
+
+    const employee = await User.findOne({
+      _id: id,
+      role: "employee",
+    });
+
+    if (!employee) {
+      return res.status(404).json({
+        message: "Không tìm thấy nhân viên.",
+      });
+    }
+
+    const rekognitionUserId =
+      employee.faceVerification
+        ?.rekognitionUserId;
+
+    if (rekognitionUserId) {
+      await deleteEmployeeFaces(
+        rekognitionUserId
+      );
+    }
+
+    employee.faceVerification = {
+      enrolled: false,
+
+      provider:
+        "aws_rekognition",
+
+      rekognitionUserId: null,
+
+      faceIds: [],
+
+      enrolledAt: null,
+
+      lastVerifiedAt: null,
+
+      updatedAt: new Date(),
+    };
+
+    await employee.save();
+
+    return res.json({
+      success: true,
+
+      message:
+        "Đã xóa dữ liệu khuôn mặt của nhân viên.",
+    });
+  } catch (error) {
+    console.error(
+      "DELETE FACE ERROR:",
+      error
+    );
+
+    return res.status(500).json({
+      message:
+        "Không thể xóa dữ liệu khuôn mặt.",
     });
   }
 };

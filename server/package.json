@@ -12,6 +12,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@aws-amplify/ui-react": "^6.15.6",
+    "@aws-amplify/ui-react-liveness": "^3.6.9",
+    "@aws-sdk/client-rekognition": "^3.1141.0",
+    "aws-amplify": "^6.22.0",
     "bcryptjs": "^3.0.3",
     "cloudinary": "^1.41.3",
     "cors": "^2.8.6",
