@@ -8,6 +8,10 @@ const {
   updateEmployee,
   deleteEmployee,
   changeEmployeePassword,
+  createFaceEnrollmentSession,
+  completeFaceEnrollment,
+  getFaceStatus,
+  deleteFace,
 } = require("../controllers/employeeController");
 
 const {
@@ -15,20 +19,6 @@ const {
   adminOnly,
 } = require("../middleware/authMiddleware");
 
-const {
-  getEmployees,
-  createEmployee,
-  updateEmployee,
-  deleteEmployee,
-  changeEmployeePassword,
-
-  createFaceEnrollmentSession,
-  completeFaceEnrollment,
-  getFaceStatus,
-  deleteFace,
-} = require("../controllers/employeeController");
-
-// Tất cả API nhân viên chỉ Admin
 router.use(protect);
 router.use(adminOnly);
 
@@ -38,12 +28,9 @@ router.post("/", createEmployee);
 
 router.put("/:id", updateEmployee);
 
-router.delete("/:id", deleteEmployee);
+router.put("/:id/password", changeEmployeePassword);
 
-router.put(
-  "/:id/password",
-  changeEmployeePassword
-);
+router.delete("/:id", deleteEmployee);
 
 router.post(
   "/:id/face/session",
