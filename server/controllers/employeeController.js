@@ -1,115 +1,288 @@
-const mongoose = require("mongoose");
+const bcrypt = require("bcryptjs");
 const User = require("../models/User");
 const EmployeeBiometric = require("../models/EmployeeBiometric");
-const bcrypt = require("bcryptjs");
 
-// =====================================================
-// HELPERS
-// =====================================================
+// Các hình thức làm việc được hỗ trợ
+const EMPLOYMENT_TYPES = [
+  "Toàn thời gian",
+  "Bán thời gian",
+  "Thời vụ",
+];
 
-const isValidId = (id) =>
-  mongoose.Types.ObjectId.isValid(id);
+// Các hình thức tính lương
+const PAY_TYPES = ["hourly", "daily"];
 
-const validateDescriptor = (descriptor) => {
-  return (
-    Array.isArray(descriptor) &&
-    descriptor.length === 128 &&
-    descriptor.every(
-      (value) =>
-        typeof value === "number" &&
-        Number.isFinite(value)
-    )
-  );
+// Các trường hồ sơ nhân viên được phép cập nhật
+const EMPLOYEE_PROFILE_FIELDS = [
+  "name",
+  "email",
+  "phone",
+  "password",
+  "isActive",
+  "position",
+  "department",
+  "employmentType",
+  "payType",
+  "hourlyRate",
+  "dailyRate",
+  "startDate",
+  "note",
+];
+
+// Chuẩn hóa email
+const normalizeEmail = (email) => {
+  return String(email || "").trim().toLowerCase();
 };
 
-const employeeNotFound = (res) =>
-  res.status(404).json({
-    success: false,
-    message: "Không tìm thấy nhân viên.",
+// Kiểm tra ID MongoDB
+const isValidObjectId = (id) => {
+  return /^[a-f\d]{24}$/i.test(String(id || ""));
+};
+
+// Chỉ lấy các trường được phép từ request body
+const pickEmployeeFields = (body = {}) => {
+  const result = {};
+
+  EMPLOYEE_PROFILE_FIELDS.forEach((field) => {
+    if (Object.prototype.hasOwnProperty.call(body, field)) {
+      result[field] = body[field];
+    }
   });
 
-// =====================================================
-// GET ALL EMPLOYEES
-// GET /api/employees
-// =====================================================
+  return result;
+};
 
+// Kiểm tra và chuẩn hóa dữ liệu hồ sơ nhân viên
+const validateEmployeeProfile = (input, { isCreate = false } = {}) => {
+  const errors = [];
+  const data = { ...input };
+
+  if (isCreate || Object.prototype.hasOwnProperty.call(data, "name")) {
+    data.name = String(data.name || "").trim();
+
+    if (!data.name) {
+      errors.push("Họ tên nhân viên không được để trống.");
+    }
+  }
+
+  if (isCreate || Object.prototype.hasOwnProperty.call(data, "email")) {
+    data.email = normalizeEmail(data.email);
+
+    if (!data.email) {
+      errors.push("Email không được để trống.");
+    } else {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailRegex.test(data.email)) {
+        errors.push("Email không hợp lệ.");
+      }
+    }
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "phone")) {
+    data.phone = String(data.phone || "").trim();
+  } else if (isCreate) {
+    data.phone = "";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "position")) {
+    data.position = String(data.position || "").trim();
+
+    if (!data.position) {
+      errors.push("Chức vụ không được để trống.");
+    }
+  } else if (isCreate) {
+    data.position = "Nhân viên phục vụ";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "department")) {
+    data.department = String(data.department || "").trim();
+
+    if (!data.department) {
+      errors.push("Bộ phận không được để trống.");
+    }
+  } else if (isCreate) {
+    data.department = "Phục vụ";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "employmentType")) {
+    if (!EMPLOYMENT_TYPES.includes(data.employmentType)) {
+      errors.push("Hình thức làm việc không hợp lệ.");
+    }
+  } else if (isCreate) {
+    data.employmentType = "Bán thời gian";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "payType")) {
+    if (!PAY_TYPES.includes(data.payType)) {
+      errors.push("Hình thức tính lương không hợp lệ.");
+    }
+  } else if (isCreate) {
+    data.payType = "hourly";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "hourlyRate")) {
+    const hourlyRate = Number(data.hourlyRate);
+
+    if (!Number.isFinite(hourlyRate) || hourlyRate < 0) {
+      errors.push("Lương theo giờ phải là số không âm.");
+    } else {
+      data.hourlyRate = hourlyRate;
+    }
+  } else if (isCreate) {
+    data.hourlyRate = 0;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "dailyRate")) {
+    const dailyRate = Number(data.dailyRate);
+
+    if (!Number.isFinite(dailyRate) || dailyRate < 0) {
+      errors.push("Lương theo ngày phải là số không âm.");
+    } else {
+      data.dailyRate = dailyRate;
+    }
+  } else if (isCreate) {
+    data.dailyRate = 0;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "startDate")) {
+    if (data.startDate === "" || data.startDate === null) {
+      data.startDate = null;
+    } else {
+      const parsedDate = new Date(data.startDate);
+
+      if (Number.isNaN(parsedDate.getTime())) {
+        errors.push("Ngày bắt đầu làm việc không hợp lệ.");
+      } else {
+        data.startDate = parsedDate;
+      }
+    }
+  } else if (isCreate) {
+    data.startDate = null;
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "note")) {
+    data.note = String(data.note || "").trim();
+  } else if (isCreate) {
+    data.note = "";
+  }
+
+  if (Object.prototype.hasOwnProperty.call(data, "isActive")) {
+    if (typeof data.isActive === "string") {
+      data.isActive = data.isActive.toLowerCase() === "true";
+    } else {
+      data.isActive = Boolean(data.isActive);
+    }
+  } else if (isCreate) {
+    data.isActive = true;
+  }
+
+  return { data, errors };
+};
+
+// Trả về dữ liệu nhân viên, không trả mật khẩu
+const employeeResponse = (employee) => {
+  if (!employee) return null;
+
+  const data =
+    typeof employee.toObject === "function"
+      ? employee.toObject()
+      : { ...employee };
+
+  delete data.password;
+  delete data.__v;
+
+  return data;
+};
+
+// Lấy danh sách nhân viên
+// GET /api/employees
 exports.getEmployees = async (req, res) => {
   try {
-    const employees = await User.find({
-      role: "employee",
-    })
+    const employees = await User.find({ role: "employee" })
       .select("-password")
-      .sort({ createdAt: -1 })
-      .lean();
+      .sort({ createdAt: -1 });
 
     return res.status(200).json({
       success: true,
+      count: employees.length,
       data: employees,
     });
   } catch (error) {
-    console.error("GET EMPLOYEES ERROR:", error);
+    console.error("getEmployees error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Không thể tải danh sách nhân viên.",
+      message: "Không thể lấy danh sách nhân viên.",
     });
   }
 };
 
-// =====================================================
-// CREATE EMPLOYEE
-// POST /api/employees
-// =====================================================
+// Lấy thông tin một nhân viên
+// GET /api/employees/:id
+exports.getEmployeeById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID nhân viên không hợp lệ.",
+      });
+    }
+
+    const employee = await User.findOne({
+      _id: id,
+      role: "employee",
+    }).select("-password");
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhân viên.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: employee,
+    });
+  } catch (error) {
+    console.error("getEmployeeById error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Không thể lấy thông tin nhân viên.",
+    });
+  }
+};
+
+// Tạo nhân viên mới
+// POST /api/employees
 exports.createEmployee = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      password,
-      phone,
-      isActive = true,
-    } = req.body || {};
-
-    if (
-      typeof name !== "string" ||
-      !name.trim() ||
-      typeof email !== "string" ||
-      !email.trim() ||
-      typeof password !== "string" ||
-      !password
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Vui lòng nhập họ tên, email và mật khẩu.",
-      });
-    }
-
-    if (password.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Mật khẩu phải có ít nhất 6 ký tự.",
-      });
-    }
-
-    if (typeof isActive !== "boolean") {
-      return res.status(400).json({
-        success: false,
-        message: "Trạng thái nhân viên không hợp lệ.",
-      });
-    }
-
-    const normalizedEmail = email
-      .trim()
-      .toLowerCase();
-
-    const existingUser = await User.findOne({
-      email: normalizedEmail,
+    const input = pickEmployeeFields(req.body);
+    const { data, errors } = validateEmployeeProfile(input, {
+      isCreate: true,
     });
 
-    if (existingUser) {
+    if (!data.password || String(data.password).trim().length < 6) {
+      errors.push("Mật khẩu phải có ít nhất 6 ký tự.");
+    }
+
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Dữ liệu nhân viên không hợp lệ.",
+        errors,
+      });
+    }
+
+    const existingEmployee = await User.findOne({
+      email: data.email,
+    });
+
+    if (existingEmployee) {
       return res.status(409).json({
         success: false,
         message: "Email này đã được sử dụng.",
@@ -117,38 +290,37 @@ exports.createEmployee = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(
-      password,
+      String(data.password),
       10
     );
 
     const employee = await User.create({
-      name: name.trim(),
-      email: normalizedEmail,
+      name: data.name,
+      email: data.email,
+      phone: data.phone,
       password: hashedPassword,
-      phone:
-        typeof phone === "string"
-          ? phone.trim()
-          : "",
       role: "employee",
-      isActive,
-      authProvider: "local",
+      isActive: data.isActive,
+
+      position: data.position,
+      department: data.department,
+      employmentType: data.employmentType,
+
+      payType: data.payType,
+      hourlyRate: data.hourlyRate,
+      dailyRate: data.dailyRate,
+
+      startDate: data.startDate,
+      note: data.note,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Tạo tài khoản nhân viên thành công.",
-      data: {
-        _id: employee._id,
-        id: employee._id,
-        name: employee.name,
-        email: employee.email,
-        phone: employee.phone,
-        role: employee.role,
-        isActive: employee.isActive,
-      },
+      message: "Tạo nhân viên thành công.",
+      data: employeeResponse(employee),
     });
   } catch (error) {
-    console.error("CREATE EMPLOYEE ERROR:", error);
+    console.error("createEmployee error:", error);
 
     if (error.code === 11000) {
       return res.status(409).json({
@@ -157,36 +329,32 @@ exports.createEmployee = async (req, res) => {
       });
     }
 
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message: "Không thể tạo tài khoản nhân viên.",
+      message: "Lỗi máy chủ khi tạo nhân viên.",
     });
   }
 };
 
-// =====================================================
-// UPDATE EMPLOYEE
+// Cập nhật thông tin nhân viên
 // PUT /api/employees/:id
-// =====================================================
-
 exports.updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!isValidId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
-        message: "Mã nhân viên không hợp lệ.",
+        message: "ID nhân viên không hợp lệ.",
       });
     }
-
-    const {
-      name,
-      email,
-      phone,
-      password,
-      isActive,
-    } = req.body || {};
 
     const employee = await User.findOne({
       _id: id,
@@ -194,117 +362,85 @@ exports.updateEmployee = async (req, res) => {
     });
 
     if (!employee) {
-      return employeeNotFound(res);
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhân viên.",
+      });
     }
 
-    // Cập nhật họ tên
-    if (name !== undefined) {
-      if (
-        typeof name !== "string" ||
-        !name.trim()
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Họ tên không được để trống.",
-        });
-      }
+    const input = pickEmployeeFields(req.body);
+    const { data, errors } = validateEmployeeProfile(input);
 
-      employee.name = name.trim();
+    if (Object.prototype.hasOwnProperty.call(data, "password")) {
+      const password = String(data.password || "");
+
+      if (password.length > 0 && password.length < 6) {
+        errors.push("Mật khẩu mới phải có ít nhất 6 ký tự.");
+      }
     }
 
-    // Cập nhật email
-    if (email !== undefined) {
-      if (
-        typeof email !== "string" ||
-        !email.trim()
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Email không được để trống.",
-        });
-      }
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Dữ liệu cập nhật không hợp lệ.",
+        errors,
+      });
+    }
 
-      const normalizedEmail = email
-        .trim()
-        .toLowerCase();
-
-      const duplicate = await User.findOne({
-        email: normalizedEmail,
-        _id: { $ne: employee._id },
+    // Kiểm tra email có bị nhân viên/tài khoản khác sử dụng không
+    if (data.email && data.email !== employee.email) {
+      const existingEmployee = await User.findOne({
+        email: data.email,
+        _id: { $ne: id },
       });
 
-      if (duplicate) {
+      if (existingEmployee) {
         return res.status(409).json({
           success: false,
-          message: "Email này đã được sử dụng.",
+          message: "Email này đã được sử dụng bởi tài khoản khác.",
         });
       }
-
-      employee.email = normalizedEmail;
     }
 
-    // Cập nhật số điện thoại
-    if (phone !== undefined) {
-      if (typeof phone !== "string") {
-        return res.status(400).json({
-          success: false,
-          message: "Số điện thoại không hợp lệ.",
-        });
+    // Không cập nhật mật khẩu nếu để trống
+    if (Object.prototype.hasOwnProperty.call(data, "password")) {
+      const password = String(data.password || "");
+
+      if (password.trim().length > 0) {
+        employee.password = await bcrypt.hash(password, 10);
       }
-
-      employee.phone = phone.trim();
     }
 
-    // Cập nhật trạng thái nếu frontend gửi lên
-    if (isActive !== undefined) {
-      if (typeof isActive !== "boolean") {
-        return res.status(400).json({
-          success: false,
-          message: "Trạng thái nhân viên không hợp lệ.",
-        });
+    const fieldsToUpdate = [
+      "name",
+      "email",
+      "phone",
+      "isActive",
+      "position",
+      "department",
+      "employmentType",
+      "payType",
+      "hourlyRate",
+      "dailyRate",
+      "startDate",
+      "note",
+    ];
+
+    fieldsToUpdate.forEach((field) => {
+      if (Object.prototype.hasOwnProperty.call(data, field)) {
+        employee[field] = data[field];
       }
-
-      employee.isActive = isActive;
-    }
-
-    // Đổi mật khẩu nếu có nhập mật khẩu mới
-    if (password !== undefined && password !== "") {
-      if (
-        typeof password !== "string" ||
-        password.length < 6
-      ) {
-        return res.status(400).json({
-          success: false,
-          message:
-            "Mật khẩu mới phải có ít nhất 6 ký tự.",
-        });
-      }
-
-      employee.password = await bcrypt.hash(
-        password,
-        10
-      );
-
-      employee.authProvider = "local";
-    }
+    });
 
     await employee.save();
 
     return res.status(200).json({
       success: true,
       message: "Cập nhật nhân viên thành công.",
-      data: {
-        _id: employee._id,
-        id: employee._id,
-        name: employee.name,
-        email: employee.email,
-        phone: employee.phone,
-        role: employee.role,
-        isActive: employee.isActive,
-      },
+      data: employeeResponse(employee),
     });
   } catch (error) {
-    console.error("UPDATE EMPLOYEE ERROR:", error);
+    console.error("updateEmployee error:", error);
 
     if (error.code === 11000) {
       return res.status(409).json({
@@ -313,103 +449,84 @@ exports.updateEmployee = async (req, res) => {
       });
     }
 
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message: "Không thể cập nhật nhân viên.",
+      message: "Lỗi máy chủ khi cập nhật nhân viên.",
     });
   }
 };
 
-// =====================================================
-// UPDATE EMPLOYEE STATUS
+// Cập nhật trạng thái hoạt động của nhân viên
 // PATCH /api/employees/:id/status
-// =====================================================
-
 exports.updateEmployeeStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { isActive } = req.body || {};
+    const { isActive } = req.body;
 
-    if (!isValidId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
-        message: "Mã nhân viên không hợp lệ.",
+        message: "ID nhân viên không hợp lệ.",
       });
     }
 
     if (typeof isActive !== "boolean") {
       return res.status(400).json({
         success: false,
-        message:
-          "Trạng thái phải là true hoặc false.",
+        message: "isActive phải là true hoặc false.",
       });
     }
 
-    const employee = await User.findOne({
-      _id: id,
-      role: "employee",
-    });
+    const employee = await User.findOneAndUpdate(
+      {
+        _id: id,
+        role: "employee",
+      },
+      { $set: { isActive } },
+      { new: true, runValidators: true }
+    ).select("-password");
 
     if (!employee) {
-      return employeeNotFound(res);
-    }
-
-    // Không cập nhật nếu trạng thái không thay đổi
-    if (employee.isActive === isActive) {
-      return res.status(200).json({
-        success: true,
-        message: isActive
-          ? "Tài khoản nhân viên đang hoạt động."
-          : "Tài khoản nhân viên đã bị khóa.",
-        data: {
-          _id: employee._id,
-          name: employee.name,
-          isActive: employee.isActive,
-        },
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhân viên.",
       });
     }
-
-    employee.isActive = isActive;
-    await employee.save();
 
     return res.status(200).json({
       success: true,
       message: isActive
-        ? "Đã mở khóa tài khoản nhân viên."
-        : "Đã khóa tài khoản nhân viên.",
-      data: {
-        _id: employee._id,
-        name: employee.name,
-        isActive: employee.isActive,
-      },
+        ? "Đã kích hoạt nhân viên."
+        : "Đã khóa nhân viên.",
+      data: employee,
     });
   } catch (error) {
-    console.error(
-      "UPDATE EMPLOYEE STATUS ERROR:",
-      error
-    );
+    console.error("updateEmployeeStatus error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Không thể cập nhật trạng thái nhân viên.",
+      message: "Không thể cập nhật trạng thái nhân viên.",
     });
   }
 };
 
-// =====================================================
-// DELETE EMPLOYEE
+// Xóa nhân viên
 // DELETE /api/employees/:id
-// =====================================================
-
 exports.deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!isValidId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
-        message: "Mã nhân viên không hợp lệ.",
+        message: "ID nhân viên không hợp lệ.",
       });
     }
 
@@ -419,27 +536,25 @@ exports.deleteEmployee = async (req, res) => {
     });
 
     if (!employee) {
-      return employeeNotFound(res);
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhân viên.",
+      });
     }
 
-    // Xóa dữ liệu Face ID trước
-    await EmployeeBiometric.deleteOne({
-      userId: employee._id,
+    // Xóa dữ liệu sinh trắc học liên quan nếu có
+    await EmployeeBiometric.deleteMany({
+      employeeId: employee._id,
     });
 
-    // Xóa tài khoản nhân viên
-    await User.deleteOne({
-      _id: employee._id,
-      role: "employee",
-    });
+    await employee.deleteOne();
 
     return res.status(200).json({
       success: true,
-      message:
-        "Đã xóa tài khoản và dữ liệu Face ID của nhân viên.",
+      message: "Xóa nhân viên thành công.",
     });
   } catch (error) {
-    console.error("DELETE EMPLOYEE ERROR:", error);
+    console.error("deleteEmployee error:", error);
 
     return res.status(500).json({
       success: false,
@@ -448,97 +563,73 @@ exports.deleteEmployee = async (req, res) => {
   }
 };
 
-// =====================================================
-// CHANGE EMPLOYEE PASSWORD
-// PUT /api/employees/:id/password
-// =====================================================
-
-exports.changeEmployeePassword = async (
-  req,
-  res
-) => {
+// Lấy trạng thái Face ID của nhân viên
+// GET /api/employees/:id/face
+exports.getEmployeeFaceStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { password } = req.body || {};
 
-    if (!isValidId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
-        message: "Mã nhân viên không hợp lệ.",
-      });
-    }
-
-    if (
-      typeof password !== "string" ||
-      password.length < 6
-    ) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Mật khẩu phải có ít nhất 6 ký tự.",
+        message: "ID nhân viên không hợp lệ.",
       });
     }
 
     const employee = await User.findOne({
       _id: id,
       role: "employee",
-    });
+    }).select("-password");
 
     if (!employee) {
-      return employeeNotFound(res);
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhân viên.",
+      });
     }
 
-    employee.password = await bcrypt.hash(
-      password,
-      10
-    );
-    employee.authProvider = "local";
-
-    await employee.save();
+    const biometric = await EmployeeBiometric.findOne({
+      employeeId: employee._id,
+    });
 
     return res.status(200).json({
       success: true,
-      message: "Đổi mật khẩu thành công.",
+      data: {
+        employee,
+        enrolled: Boolean(biometric),
+        enrolledAt: biometric?.createdAt || null,
+        lastVerifiedAt: biometric?.lastVerifiedAt || null,
+        biometric: biometric
+          ? {
+              _id: biometric._id,
+              createdAt: biometric.createdAt,
+              updatedAt: biometric.updatedAt,
+              lastVerifiedAt: biometric.lastVerifiedAt || null,
+            }
+          : null,
+      },
     });
   } catch (error) {
-    console.error(
-      "CHANGE EMPLOYEE PASSWORD ERROR:",
-      error
-    );
+    console.error("getEmployeeFaceStatus error:", error);
 
     return res.status(500).json({
       success: false,
-      message: "Không thể đổi mật khẩu.",
+      message: "Không thể kiểm tra trạng thái Face ID.",
     });
   }
 };
 
-// =====================================================
-// ENROLL FACE ID
+// Đăng ký Face ID cho nhân viên
 // POST /api/employees/:id/face/enroll
-// Chỉ tạo mới, không ghi đè Face ID đã có
-// =====================================================
-
-exports.completeFaceEnrollment = async (
-  req,
-  res
-) => {
+exports.enrollEmployeeFace = async (req, res) => {
   try {
     const { id } = req.params;
-    const { descriptor } = req.body || {};
+    const { descriptor } = req.body;
 
-    if (!isValidId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
-        message: "Mã nhân viên không hợp lệ.",
-      });
-    }
-
-    if (!validateDescriptor(descriptor)) {
-      return res.status(400).json({
-        success: false,
-        message:
-          "Face descriptor không hợp lệ. Cần đúng 128 giá trị số.",
+        message: "ID nhân viên không hợp lệ.",
       });
     }
 
@@ -548,66 +639,78 @@ exports.completeFaceEnrollment = async (
     });
 
     if (!employee) {
-      return employeeNotFound(res);
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhân viên.",
+      });
     }
 
     if (!employee.isActive) {
       return res.status(400).json({
         success: false,
-        message:
-          "Tài khoản nhân viên đang bị khóa.",
+        message: "Nhân viên đang bị khóa, không thể đăng ký Face ID.",
       });
     }
 
-    // Có dữ liệu Face ID rồi thì tuyệt đối không ghi đè
-    const existing = await EmployeeBiometric.findOne({
-      userId: employee._id,
+    if (
+      !Array.isArray(descriptor) ||
+      descriptor.length !== 128 ||
+      !descriptor.every(
+        (value) =>
+          typeof value === "number" && Number.isFinite(value)
+      )
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Dữ liệu khuôn mặt không hợp lệ.",
+      });
+    }
+
+    const existingBiometric = await EmployeeBiometric.findOne({
+      employeeId: employee._id,
     });
 
-    if (existing) {
+    // Không ghi đè Face ID đã đăng ký
+    if (existingBiometric) {
       return res.status(409).json({
         success: false,
-        enrolled: true,
-        message:
-          "Nhân viên đã đăng ký Face ID. Không thể đăng ký lại.",
+        message: "Nhân viên đã đăng ký Face ID.",
+        data: {
+          enrolled: true,
+          enrolledAt: existingBiometric.createdAt || null,
+        },
       });
     }
 
     const biometric = await EmployeeBiometric.create({
-      userId: employee._id,
-      provider: "face-api",
+      employeeId: employee._id,
       descriptor,
-      enrolledAt: new Date(),
-      lastVerifiedAt: null,
-      enrollmentVersion: 1,
-      isActive: true,
     });
 
     return res.status(201).json({
       success: true,
       message: "Đăng ký Face ID thành công.",
       data: {
-        userId: employee._id,
+        employeeId: employee._id,
         enrolled: true,
-        enrolledAt: biometric.enrolledAt,
-        updatedAt: biometric.updatedAt,
-        enrollmentVersion:
-          biometric.enrollmentVersion,
+        enrolledAt: biometric.createdAt || null,
       },
     });
   } catch (error) {
-    console.error(
-      "COMPLETE FACE ENROLLMENT ERROR:",
-      error
-    );
+    console.error("enrollEmployeeFace error:", error);
 
-    // Trường hợp hai yêu cầu đăng ký đến gần như cùng lúc
+    // Phòng trường hợp hai yêu cầu đăng ký đến gần như đồng thời
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        enrolled: true,
-        message:
-          "Nhân viên đã đăng ký Face ID. Không thể đăng ký lại.",
+        message: "Nhân viên đã đăng ký Face ID.",
+      });
+    }
+
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
       });
     }
 
@@ -618,80 +721,16 @@ exports.completeFaceEnrollment = async (
   }
 };
 
-// =====================================================
-// GET FACE STATUS
-// GET /api/employees/:id/face
-// =====================================================
-
-exports.getFaceStatus = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (!isValidId(id)) {
-      return res.status(400).json({
-        success: false,
-        message: "Mã nhân viên không hợp lệ.",
-      });
-    }
-
-    const employee = await User.findOne({
-      _id: id,
-      role: "employee",
-    }).select("_id name email role isActive");
-
-    if (!employee) {
-      return employeeNotFound(res);
-    }
-
-    const biometric = await EmployeeBiometric.findOne({
-      userId: employee._id,
-    }).select(
-      "userId provider enrolledAt updatedAt enrollmentVersion isActive lastVerifiedAt"
-    );
-
-    const enrolled =
-      !!biometric && biometric.isActive !== false;
-
-    return res.status(200).json({
-      success: true,
-      data: {
-        employee: {
-          id: employee._id,
-          name: employee.name,
-          email: employee.email,
-          role: employee.role,
-          isActive: employee.isActive,
-        },
-        enrolled,
-        enrolledAt: biometric?.enrolledAt || null,
-        lastVerifiedAt:
-          biometric?.lastVerifiedAt || null,
-        biometric: biometric || null,
-      },
-    });
-  } catch (error) {
-    console.error("GET FACE STATUS ERROR:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Không thể lấy trạng thái Face ID.",
-    });
-  }
-};
-
-// =====================================================
-// DELETE FACE ID
+// Xóa Face ID để quản trị viên có thể đăng ký lại
 // DELETE /api/employees/:id/face
-// =====================================================
-
-exports.deleteFace = async (req, res) => {
+exports.deleteEmployeeFace = async (req, res) => {
   try {
     const { id } = req.params;
 
-    if (!isValidId(id)) {
+    if (!isValidObjectId(id)) {
       return res.status(400).json({
         success: false,
-        message: "Mã nhân viên không hợp lệ.",
+        message: "ID nhân viên không hợp lệ.",
       });
     }
 
@@ -701,35 +740,96 @@ exports.deleteFace = async (req, res) => {
     });
 
     if (!employee) {
-      return employeeNotFound(res);
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhân viên.",
+      });
     }
 
-    const result = await EmployeeBiometric.deleteOne({
-      userId: employee._id,
+    const result = await EmployeeBiometric.deleteMany({
+      employeeId: employee._id,
     });
 
     if (result.deletedCount === 0) {
       return res.status(404).json({
         success: false,
-        enrolled: false,
-        message:
-          "Nhân viên chưa có dữ liệu Face ID.",
+        message: "Nhân viên chưa đăng ký Face ID.",
       });
     }
 
     return res.status(200).json({
       success: true,
-      enrolled: false,
-      message:
-        "Đã xóa dữ liệu Face ID của nhân viên.",
+      message: "Đã xóa Face ID của nhân viên.",
+      data: {
+        employeeId: employee._id,
+        enrolled: false,
+      },
     });
   } catch (error) {
-    console.error("DELETE FACE ERROR:", error);
+    console.error("deleteEmployeeFace error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Không thể xóa dữ liệu khuôn mặt.",
+      message: "Không thể xóa Face ID.",
+    });
+  }
+  
+};
+
+// Đổi mật khẩu nhân viên
+// PUT /api/employees/:id/password
+exports.changeEmployeePassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!isValidObjectId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "ID nhân viên không hợp lệ.",
+      });
+    }
+
+    if (
+      typeof password !== "string" ||
+      password.trim().length < 6
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Mật khẩu phải có ít nhất 6 ký tự.",
+      });
+    }
+
+    const employee = await User.findOne({
+      _id: id,
+      role: "employee",
+    });
+
+    if (!employee) {
+      return res.status(404).json({
+        success: false,
+        message: "Không tìm thấy nhân viên.",
+      });
+    }
+
+    employee.password = await bcrypt.hash(password, 10);
+    await employee.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Đổi mật khẩu nhân viên thành công.",
+    });
+  } catch (error) {
+    console.error("changeEmployeePassword error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Không thể đổi mật khẩu nhân viên.",
     });
   }
 };
+
+// Đồng bộ tên hàm với employeeRoutes.js
+exports.completeFaceEnrollment = exports.enrollEmployeeFace;
+exports.getFaceStatus = exports.getEmployeeFaceStatus;
+exports.deleteFace = exports.deleteEmployeeFace;

@@ -91,6 +91,40 @@ const userSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
+      position: {
+  type: String,
+  trim: true,
+  default: "Nhân viên phục vụ",
+},
+
+department: {
+  type: String,
+  trim: true,
+  default: "Phục vụ",
+},
+
+employmentType: {
+  type: String,
+  enum: ["Toàn thời gian", "Bán thời gian", "Thời vụ"],
+  default: "Bán thời gian",
+},
+
+hourlyRate: {
+  type: Number,
+  min: 0,
+  default: 0,
+},
+
+startDate: {
+  type: Date,
+  default: null,
+},
+
+note: {
+  type: String,
+  trim: true,
+  default: "",
+},
     },
   },
   {
