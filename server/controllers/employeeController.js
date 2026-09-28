@@ -308,6 +308,10 @@ exports.changeEmployeePassword =
 // ENROLL FACE
 // =====================================================
 
+// =====================================================
+// ENROLL FACE
+// =====================================================
+
 exports.completeFaceEnrollment =
   async (req, res) => {
     try {
@@ -318,18 +322,14 @@ exports.completeFaceEnrollment =
       // KIỂM TRA DESCRIPTOR
       // ==========================================
 
-      if (
-        !Array.isArray(descriptor)
-      ) {
+      if (!Array.isArray(descriptor)) {
         return res.status(400).json({
           message:
             "Thiếu dữ liệu khuôn mặt.",
         });
       }
 
-      if (
-        descriptor.length !== 128
-      ) {
+      if (descriptor.length !== 128) {
         return res.status(400).json({
           message:
             "Face descriptor phải có đúng 128 giá trị.",
@@ -375,47 +375,95 @@ exports.completeFaceEnrollment =
       }
 
       // ==========================================
-      // LƯU KHUÔN MẶT
+      // KIỂM TRA FACE ID CŨ
+      // ==========================================
+
+      const existing =
+        await EmployeeBiometric.findOne({
+          userId: employee._id,
+        });
+
+      // ==========================================
+      // NẾU ĐÃ CÓ → CẬP NHẬT
+      // ==========================================
+
+      if (existing) {
+        existing.descriptor = descriptor;
+
+        existing.provider = "face-api";
+
+        existing.isActive = true;
+
+        existing.enrollmentVersion =
+          (existing.enrollmentVersion || 1) + 1;
+
+        existing.lastVerifiedAt = null;
+
+        await existing.save();
+
+        return res.json({
+          success: true,
+
+          message:
+            "Đã cập nhật Face ID cho nhân viên.",
+
+          data: {
+            userId: employee._id,
+
+            enrolled: true,
+
+            enrolledAt:
+              existing.enrolledAt,
+
+            updatedAt:
+              existing.updatedAt,
+
+            enrollmentVersion:
+              existing.enrollmentVersion,
+          },
+        });
+      }
+
+      // ==========================================
+      // CHƯA CÓ → TẠO MỚI
       // ==========================================
 
       const biometric =
-        await EmployeeBiometric.findOneAndUpdate(
-          {
-            userId: employee._id,
-          },
-          {
-            userId: employee._id,
+        await EmployeeBiometric.create({
+          userId: employee._id,
 
-            provider: "face-api",
+          provider: "face-api",
 
-            descriptor,
+          descriptor,
 
-            enrolledAt: new Date(),
+          enrolledAt: new Date(),
 
-            lastVerifiedAt: null,
-          },
-          {
-            new: true,
+          lastVerifiedAt: null,
 
-            upsert: true,
+          enrollmentVersion: 1,
 
-            runValidators: true,
+          isActive: true,
+        });
 
-            setDefaultsOnInsert: true,
-          }
-        );
-
-      return res.json({
+      return res.status(201).json({
         success: true,
 
         message:
-          "Đăng ký khuôn mặt thành công.",
+          "Đăng ký Face ID thành công.",
 
         data: {
+          userId: employee._id,
+
           enrolled: true,
 
           enrolledAt:
             biometric.enrolledAt,
+
+          updatedAt:
+            biometric.updatedAt,
+
+          enrollmentVersion:
+            biometric.enrollmentVersion,
         },
       });
     } catch (error) {
@@ -426,11 +474,10 @@ exports.completeFaceEnrollment =
 
       return res.status(500).json({
         message:
-          "Không thể đăng ký khuôn mặt.",
+          "Không thể đăng ký Face ID.",
       });
     }
   };
-
 // =====================================================
 // GET FACE STATUS
 // =====================================================

@@ -23,6 +23,7 @@ const employeeBiometricSchema =
           validator: (value) =>
             Array.isArray(value) &&
             value.length === 128,
+
           message:
             "Face descriptor phải có 128 giá trị.",
         },
@@ -37,7 +38,22 @@ const employeeBiometricSchema =
         type: Date,
         default: null,
       },
+
+      // ==========================================
+      // TRẠNG THÁI FACE ID
+      // ==========================================
+
+      enrollmentVersion: {
+        type: Number,
+        default: 1,
+      },
+
+      isActive: {
+        type: Boolean,
+        default: true,
+      },
     },
+
     {
       timestamps: true,
     }
