@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
@@ -50,6 +51,58 @@ const userSchema = new mongoose.Schema(
     },
 
     // =====================================================
+    // THÔNG TIN HỒ SƠ NHÂN VIÊN
+    // Các trường này phải nằm ngoài faceVerification
+    // =====================================================
+
+    position: {
+      type: String,
+      trim: true,
+      default: "Nhân viên phục vụ",
+    },
+
+    department: {
+      type: String,
+      trim: true,
+      default: "Phục vụ",
+    },
+
+    employmentType: {
+      type: String,
+      enum: ["Toàn thời gian", "Bán thời gian", "Thời vụ"],
+      default: "Bán thời gian",
+    },
+
+    payType: {
+      type: String,
+      enum: ["hourly", "daily"],
+      default: "hourly",
+    },
+
+    hourlyRate: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    dailyRate: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+
+    startDate: {
+      type: Date,
+      default: null,
+    },
+
+    note: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    // =====================================================
     // FACE VERIFICATION
     // =====================================================
 
@@ -91,40 +144,6 @@ const userSchema = new mongoose.Schema(
         type: Date,
         default: null,
       },
-      position: {
-  type: String,
-  trim: true,
-  default: "Nhân viên phục vụ",
-},
-
-department: {
-  type: String,
-  trim: true,
-  default: "Phục vụ",
-},
-
-employmentType: {
-  type: String,
-  enum: ["Toàn thời gian", "Bán thời gian", "Thời vụ"],
-  default: "Bán thời gian",
-},
-
-hourlyRate: {
-  type: Number,
-  min: 0,
-  default: 0,
-},
-
-startDate: {
-  type: Date,
-  default: null,
-},
-
-note: {
-  type: String,
-  trim: true,
-  default: "",
-},
     },
   },
   {
