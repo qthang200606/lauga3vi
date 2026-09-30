@@ -11,7 +11,7 @@ const RESTAURANT_LAT = 15.975479675865323;
 const RESTAURANT_LNG = 108.25442895323303;
 
 // Bán kính cho phép chấm công: 100 mét
-const MAX_DISTANCE = 100;
+const MAX_DISTANCE = 30000;
 
 // Mã QR chấm công hiện tại
 const ATTENDANCE_QR_CODE = "LAUGA3VI_ATTENDANCE_2026";
