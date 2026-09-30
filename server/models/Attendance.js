@@ -40,6 +40,30 @@ const attendanceSchema = new mongoose.Schema(
       },
     },
 
+    approvalStatus: {
+  type: String,
+  enum: ["pending", "approved"],
+  default: "pending",
+  index: true,
+},
+
+reviewedBy: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "User",
+  default: null,
+},
+
+reviewedAt: {
+  type: Date,
+  default: null,
+},
+
+adjustmentNote: {
+  type: String,
+  default: "",
+  trim: true,
+},
+
     checkOut: {
       time: {
         type: Date,
@@ -68,6 +92,7 @@ const attendanceSchema = new mongoose.Schema(
   {
     timestamps: true,
   }
+  
 );
 
 // Một ca được phân chỉ có một bản ghi chấm công.

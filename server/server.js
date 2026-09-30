@@ -19,6 +19,7 @@ const employeeRoutes = require("./routes/employeeRoutes");
 const User = require("./models/User");
 const faceRoutes = require("./routes/faceRoutes");
 const workShiftRoutes = require("./routes/workShiftRoutes");
+const payrollRoutes = require("./routes/payrollRoutes");
 
 const app = express();
 const server = http.createServer(app);
@@ -153,6 +154,7 @@ app.use("/api/attendance", attendanceRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/face", faceRoutes);
 app.use("/api/work-shifts", workShiftRoutes);
+app.use("/api/payroll", payrollRoutes);
 // ====================
 // Server Start
 // ====================
