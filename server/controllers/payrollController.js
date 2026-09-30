@@ -1,3 +1,4 @@
+
 const mongoose = require("mongoose");
 const User = require("../models/User");
 const Attendance = require("../models/Attendance");
@@ -41,8 +42,127 @@ const roundMoney = (value) => Math.round(Number(value) || 0);
 const formatHours = (minutes) =>
   Math.round((minutes / 60) * 100) / 100;
 
+// Tính lương từ danh sách chấm công đã được duyệt
+const calculateEmployeePayroll = (employee, attendances) => {
+  const isDaily = employee.payType === "daily";
+  const hourlyRate = Number(employee.hourlyRate) || 0;
+  const dailyRate = Number(employee.dailyRate) || 0;
+
+  let totalMinutes = 0;
+  let totalSalary = 0;
+
+  const countedDates = new Set();
+  const attendanceDetails = [];
+
+  attendances.forEach((attendance) => {
+    const checkIn = attendance.checkIn?.time
+      ? new Date(attendance.checkIn.time)
+      : null;
+
+    const checkOut = attendance.checkOut?.time
+      ? new Date(attendance.checkOut.time)
+      : null;
+
+    if (
+      !checkIn ||
+      !checkOut ||
+      Number.isNaN(checkIn.getTime()) ||
+      Number.isNaN(checkOut.getTime()) ||
+      checkOut <= checkIn
+    ) {
+      return;
+    }
+
+    const workedMinutes = Math.floor(
+      (checkOut.getTime() - checkIn.getTime()) / 60000
+    );
+
+    if (workedMinutes <= 0) return;
+
+    totalMinutes += workedMinutes;
+
+    let salary = 0;
+
+    if (isDaily) {
+      // Lương ngày: một ngày có nhiều ca vẫn chỉ tính một lần
+      if (!countedDates.has(attendance.date)) {
+        countedDates.add(attendance.date);
+        salary = roundMoney(dailyRate);
+        totalSalary += salary;
+      }
+    } else {
+      // Lương giờ: số phút làm việc / 60 * mức lương giờ
+      salary = roundMoney((workedMinutes / 60) * hourlyRate);
+      totalSalary += salary;
+    }
+
+    const workShift = attendance.employeeShiftId?.workShift;
+
+    attendanceDetails.push({
+      attendanceId: attendance._id,
+      employeeShiftId: attendance.employeeShiftId?._id || null,
+      shiftName: workShift?.name || "Ca làm",
+      date: attendance.date,
+      checkIn,
+      checkOut,
+      workedMinutes,
+      workedHours: formatHours(workedMinutes),
+      salary,
+      approvalStatus: attendance.approvalStatus,
+    });
+  });
+
+  return {
+    employee: {
+      _id: employee._id,
+      name: employee.name || "",
+      email: employee.email || "",
+      phone: employee.phone || "",
+      position: employee.position || "",
+      department: employee.department || "",
+      isActive: employee.isActive,
+      payType: employee.payType || "hourly",
+    },
+    salaryRate: isDaily ? dailyRate : hourlyRate,
+    salaryUnit: isDaily ? "ngày" : "giờ",
+    attendanceCount: attendanceDetails.length,
+    totalDays: isDaily ? countedDates.size : 0,
+    totalMinutes,
+    totalHours: formatHours(totalMinutes),
+    totalSalary: roundMoney(totalSalary),
+    attendanceDetails,
+  };
+};
+
+// Dùng chung truy vấn chấm công đã được duyệt
+const getApprovedAttendances = (employeeId, range) => {
+  return Attendance.find({
+    userId: employeeId,
+    date: {
+      $gte: range.startDate,
+      $lt: range.endDate,
+    },
+    status: "completed",
+    approvalStatus: "approved",
+    "checkIn.time": { $ne: null },
+    "checkOut.time": { $ne: null },
+  })
+    .select(
+      "userId employeeShiftId date checkIn checkOut status approvalStatus"
+    )
+    .populate({
+      path: "employeeShiftId",
+      populate: {
+        path: "workShift",
+        select: "name startTime endTime",
+      },
+    })
+    .sort({ date: 1, "checkIn.time": 1 })
+    .lean();
+};
+
 // GET /api/payroll?month=2026-09
-// Admin xem bảng lương theo tháng
+// Admin xem bảng lương tất cả nhân viên
 exports.getMonthlyPayroll = async (req, res) => {
   try {
     const month = String(req.query.month || getVietnamMonth()).trim();
@@ -81,7 +201,6 @@ exports.getMonthlyPayroll = async (req, res) => {
 
     const employeeIds = employees.map((employee) => employee._id);
 
-    // Chỉ lấy các bản ghi đã hoàn thành và được admin duyệt
     const approvedAttendances = await Attendance.find({
       userId: { $in: employeeIds },
       date: {
@@ -107,7 +226,6 @@ exports.getMonthlyPayroll = async (req, res) => {
       .lean();
 
     // Số bản ghi chưa được duyệt trong tháng
-    // Bao gồm cả dữ liệu cũ chưa có approvalStatus.
     const pendingCount = await Attendance.countDocuments({
       userId: { $in: employeeIds },
       date: {
@@ -121,34 +239,22 @@ exports.getMonthlyPayroll = async (req, res) => {
 
     employees.forEach((employee) => {
       employeeMap.set(String(employee._id), {
-        employee: {
-          _id: employee._id,
-          name: employee.name || "",
-          email: employee.email || "",
-          phone: employee.phone || "",
-          position: employee.position || "",
-          department: employee.department || "",
-          isActive: employee.isActive,
-          payType: employee.payType || "hourly",
-        },
-
-        // Mức lương riêng của từng nhân viên
+        employee,
         hourlyRate: Number(employee.hourlyRate) || 0,
         dailyRate: Number(employee.dailyRate) || 0,
-
         attendanceCount: 0,
         totalMinutes: 0,
         totalDays: 0,
         totalSalary: 0,
         attendanceDetails: [],
-
-        // Dùng để tránh tính lặp lương ngày khi một ngày có nhiều ca
         countedDates: new Set(),
       });
     });
 
     approvedAttendances.forEach((attendance) => {
-      const employeeKey = String(attendance.userId?._id || attendance.userId);
+      const employeeKey = String(
+        attendance.userId?._id || attendance.userId
+      );
       const payroll = employeeMap.get(employeeKey);
 
       if (!payroll) return;
@@ -171,7 +277,6 @@ exports.getMonthlyPayroll = async (req, res) => {
         return;
       }
 
-      // Tính theo phút thực tế từ check-in đến check-out
       const workedMinutes = Math.floor(
         (checkOutTime.getTime() - checkInTime.getTime()) / 60000
       );
@@ -184,7 +289,6 @@ exports.getMonthlyPayroll = async (req, res) => {
       let attendanceSalary = 0;
 
       if (payroll.employee.payType === "daily") {
-        // Lương ngày: mỗi ngày có ít nhất một ca được duyệt chỉ tính một lần
         if (!payroll.countedDates.has(attendance.date)) {
           payroll.countedDates.add(attendance.date);
           payroll.totalDays += 1;
@@ -193,7 +297,6 @@ exports.getMonthlyPayroll = async (req, res) => {
           payroll.totalSalary += attendanceSalary;
         }
       } else {
-        // Lương giờ: số phút thực tế / 60 * mức lương giờ riêng
         attendanceSalary = roundMoney(
           (workedMinutes / 60) * payroll.hourlyRate
         );
@@ -220,10 +323,19 @@ exports.getMonthlyPayroll = async (req, res) => {
     const data = Array.from(employeeMap.values()).map((payroll) => {
       const isDaily = payroll.employee.payType === "daily";
 
-      const result = {
-        ...payroll.employee,
+      return {
+        _id: payroll.employee._id,
+        name: payroll.employee.name || "",
+        email: payroll.employee.email || "",
+        phone: payroll.employee.phone || "",
+        position: payroll.employee.position || "",
+        department: payroll.employee.department || "",
+        isActive: payroll.employee.isActive,
+        payType: payroll.employee.payType || "hourly",
         hourlyRate: payroll.hourlyRate,
         dailyRate: payroll.dailyRate,
+        salaryRate: isDaily ? payroll.dailyRate : payroll.hourlyRate,
+        salaryUnit: isDaily ? "ngày" : "giờ",
         attendanceCount: payroll.attendanceCount,
         totalMinutes: payroll.totalMinutes,
         totalHours: formatHours(payroll.totalMinutes),
@@ -231,15 +343,6 @@ exports.getMonthlyPayroll = async (req, res) => {
         totalSalary: roundMoney(payroll.totalSalary),
         attendanceDetails: payroll.attendanceDetails,
       };
-
-      // Chỉ trả mức lương tương ứng với hình thức tính lương
-      result.salaryRate = isDaily
-        ? payroll.dailyRate
-        : payroll.hourlyRate;
-
-      result.salaryUnit = isDaily ? "ngày" : "giờ";
-
-      return result;
     });
 
     const totalSalary = data.reduce(
@@ -320,114 +423,14 @@ exports.getEmployeePayroll = async (req, res) => {
       });
     }
 
-    const attendances = await Attendance.find({
-      userId: employee._id,
-      date: {
-        $gte: range.startDate,
-        $lt: range.endDate,
-      },
-      status: "completed",
-      approvalStatus: "approved",
-      "checkIn.time": { $ne: null },
-      "checkOut.time": { $ne: null },
-    })
-      .populate({
-        path: "employeeShiftId",
-        populate: {
-          path: "workShift",
-          select: "name startTime endTime",
-        },
-      })
-      .sort({ date: 1, "checkIn.time": 1 })
-      .lean();
-
-    const isDaily = employee.payType === "daily";
-    const hourlyRate = Number(employee.hourlyRate) || 0;
-    const dailyRate = Number(employee.dailyRate) || 0;
-
-    let totalMinutes = 0;
-    let totalSalary = 0;
-    const countedDates = new Set();
-    const attendanceDetails = [];
-
-    attendances.forEach((attendance) => {
-      const checkIn = attendance.checkIn?.time
-        ? new Date(attendance.checkIn.time)
-        : null;
-
-      const checkOut = attendance.checkOut?.time
-        ? new Date(attendance.checkOut.time)
-        : null;
-
-      if (
-        !checkIn ||
-        !checkOut ||
-        Number.isNaN(checkIn.getTime()) ||
-        Number.isNaN(checkOut.getTime()) ||
-        checkOut <= checkIn
-      ) {
-        return;
-      }
-
-      const workedMinutes = Math.floor(
-        (checkOut.getTime() - checkIn.getTime()) / 60000
-      );
-
-      if (workedMinutes <= 0) return;
-
-      totalMinutes += workedMinutes;
-
-      let salary = 0;
-
-      if (isDaily) {
-        if (!countedDates.has(attendance.date)) {
-          countedDates.add(attendance.date);
-          salary = roundMoney(dailyRate);
-          totalSalary += salary;
-        }
-      } else {
-        salary = roundMoney((workedMinutes / 60) * hourlyRate);
-        totalSalary += salary;
-      }
-
-      attendanceDetails.push({
-        attendanceId: attendance._id,
-        employeeShiftId: attendance.employeeShiftId?._id || null,
-        shiftName:
-          attendance.employeeShiftId?.workShift?.name || "Ca làm",
-        date: attendance.date,
-        checkIn,
-        checkOut,
-        workedMinutes,
-        workedHours: formatHours(workedMinutes),
-        salary,
-      });
-    });
+    const attendances = await getApprovedAttendances(employee._id, range);
+    const data = calculateEmployeePayroll(employee, attendances);
 
     return res.status(200).json({
       success: true,
       month,
       period: range,
-      data: {
-        employee: {
-          _id: employee._id,
-          name: employee.name || "",
-          email: employee.email || "",
-          phone: employee.phone || "",
-          position: employee.position || "",
-          department: employee.department || "",
-          isActive: employee.isActive,
-          payType: employee.payType || "hourly",
-        },
-        salaryRate: isDaily ? dailyRate : hourlyRate,
-        salaryUnit: isDaily ? "ngày" : "giờ",
-        attendanceCount: attendanceDetails.length,
-        totalDays: isDaily ? countedDates.size : 0,
-        totalMinutes,
-        totalHours: formatHours(totalMinutes),
-        totalSalary: roundMoney(totalSalary),
-        attendanceDetails,
-      },
+      data,
     });
   } catch (error) {
     console.error("getEmployeePayroll error:", error);
@@ -435,6 +438,68 @@ exports.getEmployeePayroll = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Không thể lấy chi tiết lương nhân viên.",
+    });
+  }
+};
+
+// GET /api/payroll/my?month=2026-09
+// Nhân viên xem bảng lương của chính mình
+exports.getMyPayroll = async (req, res) => {
+  try {
+    // ID được lấy từ tài khoản đã xác thực, không lấy từ client
+    const employeeId = req.user?._id || req.user?.id;
+
+    if (
+      !employeeId ||
+      !mongoose.Types.ObjectId.isValid(String(employeeId))
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Không xác định được tài khoản đăng nhập.",
+      });
+    }
+
+    const employee = await User.findOne({
+      _id: employeeId,
+      role: "employee",
+    })
+      .select(
+        "name email phone position department isActive payType hourlyRate dailyRate"
+      )
+      .lean();
+
+    if (!employee) {
+      return res.status(403).json({
+        success: false,
+        message: "Tài khoản này không phải nhân viên.",
+      });
+    }
+
+    const month = String(req.query.month || getVietnamMonth()).trim();
+    const range = getMonthRange(month);
+
+    if (!range) {
+      return res.status(400).json({
+        success: false,
+        message: "Tháng không hợp lệ. Định dạng đúng là YYYY-MM.",
+      });
+    }
+
+    const attendances = await getApprovedAttendances(employee._id, range);
+    const data = calculateEmployeePayroll(employee, attendances);
+
+    return res.status(200).json({
+      success: true,
+      month,
+      period: range,
+      data,
+    });
+  } catch (error) {
+    console.error("getMyPayroll error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Không thể lấy bảng lương của bạn.",
     });
   }
 };
