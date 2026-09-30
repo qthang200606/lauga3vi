@@ -5,6 +5,9 @@ const {
   checkOut,
   getMyAttendance,
   getAllAttendance,
+  adjustAttendance,
+  approveAttendance,
+  rejectAttendance,
 } = require("../controllers/attendanceController");
 
 const {
@@ -15,11 +18,11 @@ const {
 
 const router = express.Router();
 
-
-// =========================================================
+// ========================================
 // NHÂN VIÊN
-// =========================================================
+// ========================================
 
+// Check-in
 router.post(
   "/check-in",
   protect,
@@ -27,6 +30,7 @@ router.post(
   checkIn
 );
 
+// Check-out
 router.post(
   "/check-out",
   protect,
@@ -34,6 +38,7 @@ router.post(
   checkOut
 );
 
+// Lịch sử chấm công của nhân viên đăng nhập
 router.get(
   "/my",
   protect,
@@ -41,11 +46,11 @@ router.get(
   getMyAttendance
 );
 
-
-// =========================================================
+// ========================================
 // ADMIN
-// =========================================================
+// ========================================
 
+// Lấy toàn bộ lịch sử chấm công
 router.get(
   "/admin/all",
   protect,
@@ -53,5 +58,28 @@ router.get(
   getAllAttendance
 );
 
+// Admin chỉnh giờ check-in / check-out
+router.patch(
+  "/admin/:id/adjust",
+  protect,
+  adminOnly,
+  adjustAttendance
+);
+
+// Admin duyệt chấm công
+router.patch(
+  "/admin/:id/approve",
+  protect,
+  adminOnly,
+  approveAttendance
+);
+
+// Admin từ chối chấm công
+router.patch(
+  "/admin/:id/reject",
+  protect,
+  adminOnly,
+  rejectAttendance
+);
 
 module.exports = router;
