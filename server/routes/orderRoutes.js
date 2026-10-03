@@ -7,6 +7,7 @@ const {
   getOrders,
   updateOrder,
   updateOrderStatus,
+  checkoutOrders,
 } = require("../controllers/orderController");
 
 const {
@@ -14,41 +15,20 @@ const {
   adminOnly,
 } = require("../middleware/authMiddleware");
 
-// ======================================================
-// KHÁCH QUÉT QR TẠI BÀN (KHÔNG CẦN ĐĂNG NHẬP)
-// ======================================================
+// POS chốt thanh toán một nhóm đơn cụ thể
+router.post("/checkout", protect, adminOnly, checkoutOrders);
 
+// Khách quét QR tại bàn
 router.post("/", createOrder);
 
-// ✅ Cho phép khách tại bàn gọi GET /api/orders mà không bị 403
-router.get("/", getOrders); 
+// Danh sách đơn
+router.get("/", getOrders);
 
-// ======================================================
-// KHÁCH ĐÃ ĐĂNG NHẬP
-// ======================================================
+// Đơn của tài khoản đăng nhập
+router.get("/my-orders", protect, getMyOrders);
 
-router.get(
-  "/my-orders",
-  protect,
-  getMyOrders
-);
-
-// ======================================================
-// ADMIN - CẬP NHẬT CHI TIẾT ĐƠN HÀNG & TRẠNG THÁI
-// ======================================================
-
-router.put(
-  "/:id",
-  protect,
-  adminOnly,
-  updateOrder
-);
-
-router.put(
-  "/:id/status",
-  protect,
-  adminOnly,
-  updateOrderStatus
-);
+// Admin cập nhật đơn
+router.put("/:id", protect, adminOnly, updateOrder);
+router.put("/:id/status", protect, adminOnly, updateOrderStatus);
 
 module.exports = router;
