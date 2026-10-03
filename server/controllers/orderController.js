@@ -1,5 +1,6 @@
 const Order=require("../models/Order");
 const crypto=require("crypto");
+const { randomUUID } = require("crypto");
 
 const normalizeTableCode=(value)=>{
   if(value===undefined||value===null)return "";
@@ -325,3 +326,162 @@ exports.updateOrderStatus=async(req,res)=>{
     return res.status(500).json({success:false,message:"Lỗi hệ thống khi cập nhật đơn hàng",error:error.message});
   }
 };
+
+const checkoutOrders = async (req, res) => {
+  try {
+    const { orderIds, paymentMethod } = req.body;
+
+    if (!Array.isArray(orderIds) || orderIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Danh sách đơn hàng thanh toán không hợp lệ.",
+      });
+    }
+
+    const ids = [...new Set(orderIds.map(String))];
+
+    const orders = await Order.find({
+      _id: { $in: ids },
+    });
+
+    if (orders.length !== ids.length) {
+      return res.status(404).json({
+        success: false,
+        message: "Có đơn hàng không tồn tại.",
+      });
+    }
+
+    const normalizedStatus = (order) =>
+      String(order.status || "").toLowerCase();
+
+    const invalidOrder = orders.some(
+      (order) =>
+        order.isPaid === true ||
+        String(order.paymentStatus || "").toUpperCase() === "PAID" ||
+        normalizedStatus(order) === "cancelled"
+    );
+
+    if (invalidOrder) {
+      return res.status(409).json({
+        success: false,
+        message: "Có đơn đã thanh toán hoặc đã hủy, vui lòng tải lại danh sách.",
+      });
+    }
+
+    const firstOrder = orders[0];
+    const firstTable = String(firstOrder.tableCode || "").trim().toUpperCase();
+    const firstType = String(firstOrder.orderType || "").toLowerCase();
+
+    const differentGroup = orders.some((order) => {
+      const table = String(order.tableCode || "").trim().toUpperCase();
+      const type = String(order.orderType || "").toLowerCase();
+
+      return table !== firstTable || type !== firstType;
+    });
+
+    if (differentGroup) {
+      return res.status(400).json({
+        success: false,
+        message: "Không thể thanh toán chung các đơn khác bàn hoặc khác loại.",
+      });
+    }
+
+    const total = orders.reduce(
+      (sum, order) => sum + Number(order.totalPrice || 0),
+      0
+    );
+
+    if (total <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Tổng tiền thanh toán không hợp lệ.",
+      });
+    }
+
+    const checkoutId = randomUUID();
+    const checkoutAt = new Date();
+    const method = String(paymentMethod || "").toUpperCase();
+
+    const isBank =
+      method === "BANK" ||
+      method === "BANK_TRANSFER" ||
+      method === "TRANSFER" ||
+      method === "VIETQR";
+
+    // Dùng lại hàm generatePaymentCode đã có trong controller.
+    const paymentCode = isBank
+      ? generatePaymentCode(firstOrder.tableCode || "TAKEAWAY")
+      : null;
+
+    // Tạo điều kiện cập nhật đúng các đơn POS đã chốt,
+    // không quét tất cả đơn cùng bàn.
+    const updateResult = await Order.updateMany(
+      {
+        _id: { $in: ids },
+        isPaid: { $ne: true },
+        paymentStatus: { $ne: "PAID" },
+        status: { $nin: ["cancelled", "Cancelled"] },
+      },
+      {
+        $set: {
+          checkoutId,
+          checkoutTotal: total,
+          checkoutPaymentCode: paymentCode,
+          checkoutAt,
+          paymentMethod: isBank ? "BANK_TRANSFER" : "CASH",
+          paymentStatus: isBank ? "PENDING" : "PAID",
+          ...(isBank
+            ? {}
+            : {
+                isPaid: true,
+                paidAmount: total,
+                paidAt: checkoutAt,
+                status: "completed",
+              }),
+        },
+      }
+    );
+
+    if (updateResult.modifiedCount !== ids.length) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "Một hoặc nhiều đơn vừa được thay đổi. Vui lòng tải lại và thử lại.",
+      });
+    }
+
+    // paymentCode là unique nên chỉ gắn vào bản ghi đại diện.
+    if (isBank) {
+      await Order.updateOne(
+        { _id: firstOrder._id, checkoutId },
+        { $set: { paymentCode } }
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: isBank
+        ? "Đã tạo yêu cầu thanh toán chuyển khoản."
+        : "Thanh toán tiền mặt thành công.",
+      data: {
+        checkoutId,
+        checkoutAt,
+        paymentMethod: isBank ? "BANK_TRANSFER" : "CASH",
+        paymentCode,
+        total,
+        orderIds: ids,
+        isPaid: !isBank,
+      },
+    });
+  } catch (error) {
+    console.error("CHECKOUT ORDERS ERROR:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Không thể tạo thanh toán.",
+      error: error.message,
+    });
+  }
+};
+
+exports.checkoutOrders = checkoutOrders;

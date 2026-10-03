@@ -160,6 +160,35 @@ totalPrice: {
   type: Number,
   required: true,
 },
+// Nhóm thông tin hóa đơn / checkout
+checkoutId: {
+  type: String,
+  default: null,
+  index: true,
+},
+
+checkoutAt: {
+  type: Date,
+  default: null,
+},
+
+checkoutOrderIds: [{
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Order",
+}],
+
+checkoutStatus: {
+  type: String,
+  enum: ["OPEN", "PENDING", "PAID", "CANCELLED"],
+  default: null,
+  index: true,
+},
+
+checkoutTotal: {
+  type: Number,
+  default: 0,
+  min: 0,
+},
 
     // ==========================================
     // TRẠNG THÁI
@@ -176,10 +205,29 @@ totalPrice: {
       type: Boolean,
       default: false,
     },
+  
+   checkoutId: {
+      type: String,
+      default: null,
+      index: true,
+    },
+    checkoutTotal: {
+      type: Number,
+      default: 0,
+    },
+    checkoutPaymentCode: {
+      type: String,
+      default: null,
+    },
+    checkoutAt: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
+  
 );
 
 module.exports = mongoose.model("Order", orderSchema);

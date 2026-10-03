@@ -1,47 +1,53 @@
+
 const express = require("express");
 const router = express.Router();
 const Order = require("../models/Order");
 
 // ======================================================
-// HÀM CHUẨN HÓA PAYMENT CODE
+// CHUẨN HÓA PAYMENT CODE
+// Ví dụ:
 // LG3V-B02-8003DD
+// LG3VB02-8003DD
 // LG3VB028003DD
 // LG3V B02 8003DD
-// => LG3V-B02-8003DD
-// ======================================================
-
-// ======================================================
-// HÀM CHUẨN HÓA PAYMENT CODE (SỬA LỖI TAKEAWAY)
-// LG3V-B02-8003DD       => LG3V-B02-8003DD
-// LG3V-TAKEAWAY-3A7161 => LG3V-TAKEAWAY-3A7161
-// LG3VTAKEAWAY3A7161   => LG3V-TAKEAWAY-3A7161
+// LG3V-TAKEAWAY-3A7161
 // ======================================================
 
 function normalizePaymentCode(code) {
   if (!code) return null;
 
-  // Nếu chuỗi đã có sẵn định dạng chuẩn dạng LG3V-xxx-xxx thì giữ nguyên
   const raw = String(code).trim().toUpperCase();
+
+  // Mã đã đúng định dạng
   const directMatch = raw.match(/LG3V-[A-Z0-9]+-[A-Z0-9]+/);
   if (directMatch) return directMatch[0];
 
-  // Loại bỏ tất cả ký tự đặc biệt chỉ giữ lại chữ và số
+  // Bỏ khoảng trắng và ký tự đặc biệt
   const normalized = raw.replace(/[^A-Z0-9]/g, "");
 
-  // Match 1: Trường hợp Mang về (TAKEAWAY + 6 ký tự hex ở cuối)
-  const takeawayMatch = normalized.match(/LG3VTAKEAWAY([A-Z0-9]{5,8})/);
+  // Mã mang về
+  const takeawayMatch = normalized.match(
+    /LG3VTAKEAWAY([A-Z0-9]{5,8})/
+  );
+
   if (takeawayMatch) {
     return `LG3V-TAKEAWAY-${takeawayMatch[1]}`;
   }
 
-  // Match 2: Trường hợp Tại bàn (B01, B02 + 6 ký tự hex ở cuối)
-  const tableMatch = normalized.match(/LG3VB(\d{2})([A-Z0-9]{5,8})/);
+  // Mã bàn B01, B02...
+  const tableMatch = normalized.match(
+    /LG3VB(\d{2})([A-Z0-9]{5,8})/
+  );
+
   if (tableMatch) {
     return `LG3V-B${tableMatch[1]}-${tableMatch[2]}`;
   }
 
-  // Match 3: Fallback linh hoạt cho các mã bàn custom khác
-  const fallbackMatch = normalized.match(/LG3V([A-Z0-9]+?)([A-Z0-9]{6})$/);
+  // Fallback cho mã bàn tùy chỉnh
+  const fallbackMatch = normalized.match(
+    /LG3V([A-Z0-9]+?)([A-Z0-9]{6})$/
+  );
+
   if (fallbackMatch) {
     return `LG3V-${fallbackMatch[1]}-${fallbackMatch[2]}`;
   }
@@ -61,9 +67,7 @@ router.post("/webhook", async (req, res) => {
     console.log("\n====================================");
     console.log("📩 SEPAY WEBHOOK");
     console.log("====================================");
-    console.log(
-      JSON.stringify(payload, null, 2)
-    );
+    console.log(JSON.stringify(payload, null, 2));
     console.log("====================================");
 
     const {
@@ -72,464 +76,321 @@ router.post("/webhook", async (req, res) => {
       transferAmount,
       transferType,
       referenceCode,
-      gateway
+      gateway,
     } = payload;
 
-    // ==================================================
-    // 1. CHỈ XỬ LÝ TIỀN VÀO
-    // ==================================================
-
+    // 1. Chỉ xử lý giao dịch tiền vào
     if (
       transferType &&
       String(transferType).toLowerCase() !== "in"
     ) {
-      console.log(
-        "⚠️ Không phải giao dịch tiền vào"
-      );
-
       return res.status(200).json({
         success: true,
-        message: "Không phải giao dịch tiền vào"
+        message: "Không phải giao dịch tiền vào",
       });
     }
 
-    // ==================================================
-    // 2. LẤY NỘI DUNG CHUYỂN KHOẢN
-    // ==================================================
-
-    const transferContent =
-      String(content || "").trim();
+    // 2. Lấy nội dung chuyển khoản
+    const transferContent = String(content || "").trim();
 
     if (!transferContent) {
-      console.log(
-        "⚠️ Nội dung chuyển khoản trống"
-      );
-
       return res.status(200).json({
         success: true,
-        message: "Nội dung chuyển khoản trống"
+        message: "Nội dung chuyển khoản trống",
       });
     }
 
-    console.log(
-      "📝 NỘI DUNG:",
-      transferContent
-    );
+    console.log("📝 NỘI DUNG:", transferContent);
 
-    // ==================================================
-    // 3. TÌM PAYMENT CODE
-    //
-    // Hỗ trợ:
-    //
-    // LG3V-B02-8003DD
-    // LG3VB02-8003DD
-    // LG3VB028003DD
-    // LG3V B02 8003DD
-    //
-    // SePay thực tế có thể gửi:
-    //
-    // ZP7D9FCI4O7J SEVQR LG3VB028003DD
-    // ==================================================
-
-    const paymentCode =
-      normalizePaymentCode(
-        transferContent
-      );
+    // 3. Tìm mã thanh toán
+    const paymentCode = normalizePaymentCode(transferContent);
 
     if (!paymentCode) {
-      console.log(
-        "⚠️ KHÔNG TÌM THẤY PAYMENT CODE"
-      );
-
-      console.log(
-        "Nội dung:",
-        transferContent
-      );
+      console.log("⚠️ Không tìm thấy payment code:", transferContent);
 
       return res.status(200).json({
         success: true,
-        message:
-          "Không tìm thấy mã thanh toán"
+        message: "Không tìm thấy mã thanh toán",
       });
     }
 
-    console.log(
-      "🔎 PAYMENT CODE:",
-      paymentCode
-    );
+    console.log("🔎 PAYMENT CODE:", paymentCode);
 
-    // ==================================================
-    // 4. LẤY SỐ TIỀN
-    // ==================================================
+    // 4. Kiểm tra số tiền nhận
+    const amount = Number(transferAmount || 0);
 
-    const amount =
-      Number(transferAmount || 0);
-
-    console.log(
-      "💰 SỐ TIỀN:",
-      amount
-    );
-
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
-      console.log(
-        "⚠️ Số tiền giao dịch không hợp lệ:",
-        transferAmount
-      );
-
+    if (!Number.isFinite(amount) || amount <= 0) {
       return res.status(200).json({
         success: true,
-        message:
-          "Số tiền giao dịch không hợp lệ"
+        message: "Số tiền giao dịch không hợp lệ",
       });
     }
 
-    // ==================================================
-    // 5. TÌM ORDER
-    // ==================================================
+    console.log("💰 SỐ TIỀN NHẬN:", amount);
 
-    console.log(
-      "🔍 ĐANG TÌM ORDER:",
-      paymentCode
-    );
-
-    const order =
-      await Order.findOne({
-        paymentCode: paymentCode
-      });
-
-    // ==================================================
-    // 6. KHÔNG TÌM THẤY ORDER
-    // ==================================================
+    // 5. Tìm đơn đại diện theo paymentCode
+    const order = await Order.findOne({
+      paymentCode,
+    });
 
     if (!order) {
-      console.log(
-        "❌ KHÔNG TÌM THẤY ORDER"
-      );
-
-      console.log(
-        "Payment Code:",
-        paymentCode
-      );
+      console.log("❌ Không tìm thấy đơn:", paymentCode);
 
       return res.status(200).json({
         success: true,
-        message:
-          "Không tìm thấy đơn hàng",
-        paymentCode: paymentCode
+        message: "Không tìm thấy đơn hàng",
+        paymentCode,
       });
     }
 
-    // ==================================================
-    // 7. LOG THÔNG TIN ORDER
-    // ==================================================
-
-    console.log("\n====================================");
     console.log("🧾 ORDER ID:", order._id);
-    console.log(
-      "🪑 TABLE:",
-      order.tableCode || "Không có"
-    );
-    console.log(
-      "💳 PAYMENT CODE:",
-      order.paymentCode
-    );
-    console.log(
-      "💰 ORDER TOTAL:",
-      order.totalPrice
-    );
-    console.log(
-      "💵 TRANSFER:",
-      amount
-    );
-    console.log(
-      "💳 PAYMENT STATUS:",
-      order.paymentStatus
-    );
-    console.log(
-      "✔️ IS PAID:",
-      order.isPaid
-    );
-    console.log("====================================");
+    console.log("🪑 TABLE:", order.tableCode || "Không có");
+    console.log("💳 PAYMENT CODE:", order.paymentCode);
+    console.log("🧩 CHECKOUT ID:", order.checkoutId || "Đơn cũ");
 
-    // ==================================================
-    // 8. ĐƠN ĐÃ THANH TOÁN
-    // ==================================================
+    // 6. Lấy đúng nhóm đơn thuộc hóa đơn checkout
+    // Đơn cũ không có checkoutId chỉ xử lý chính nó.
+    const checkoutOrders = order.checkoutId
+      ? await Order.find({
+          checkoutId: order.checkoutId,
+        })
+      : [order];
 
-    if (
-      order.isPaid === true ||
-      String(
-        order.paymentStatus || ""
-      ).toUpperCase() === "PAID"
-    ) {
+    if (!checkoutOrders.length) {
+      return res.status(200).json({
+        success: true,
+        message: "Không tìm thấy các đơn thuộc hóa đơn",
+        paymentCode,
+      });
+    }
+
+    // 7. Nếu toàn bộ nhóm đã thanh toán thì không xử lý lại
+    const allAlreadyPaid = checkoutOrders.every(
+      (item) =>
+        item.isPaid === true ||
+        String(item.paymentStatus || "").toUpperCase() === "PAID"
+    );
+
+    if (allAlreadyPaid) {
+      console.log("ℹ️ Hóa đơn đã thanh toán trước đó");
+
+      return res.status(200).json({
+        success: true,
+        message: "Hóa đơn đã được thanh toán",
+        checkoutId: order.checkoutId || null,
+        orderId: order._id,
+        paymentCode,
+      });
+    }
+
+    // 8. Tính tổng tiền hóa đơn
+    // checkoutTotal là tổng tiền đã chốt ở POS, nếu có.
+    // Với dữ liệu cũ, cộng totalPrice của các đơn tìm được.
+    const savedCheckoutTotal = Number(order.checkoutTotal || 0);
+
+    const groupTotal = checkoutOrders.reduce(
+      (sum, item) => sum + Number(item.totalPrice || 0),
+      0
+    );
+
+    const expectedAmount =
+      Number.isFinite(savedCheckoutTotal) && savedCheckoutTotal > 0
+        ? savedCheckoutTotal
+        : groupTotal;
+
+    console.log("💰 TỔNG HÓA ĐƠN:", expectedAmount);
+    console.log("💵 TIỀN CHUYỂN:", amount);
+
+    if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) {
+      return res.status(200).json({
+        success: true,
+        message: "Tổng tiền hóa đơn không hợp lệ",
+        expectedAmount,
+      });
+    }
+
+    if (amount < expectedAmount) {
       console.log(
-        "ℹ️ Đơn hàng đã thanh toán trước đó"
+        `⚠️ Thanh toán thiếu: cần ${expectedAmount}, nhận ${amount}`
       );
 
       return res.status(200).json({
         success: true,
-        message:
-          "Đơn hàng đã được thanh toán",
-        orderId: order._id
+        message: "Số tiền thanh toán chưa đủ",
+        expectedAmount,
+        receivedAmount: amount,
+        paymentCode,
       });
     }
 
-    // ==================================================
-    // 9. KIỂM TRA TỔNG TIỀN
-    // ==================================================
+    // 9. Cập nhật thanh toán cho đúng các bản ghi trong checkout
+    // paidAmount của từng bản ghi là tiền của chính bản ghi đó,
+    // không ghi tổng hóa đơn vào tất cả bản ghi.
+    const paidAt = new Date();
 
-    const orderTotal =
-      Number(order.totalPrice || 0);
-
-    console.log(
-      "💰 CẦN THANH TOÁN:",
-      orderTotal
+    const transactionId = String(
+      id || referenceCode || ""
     );
 
-    console.log(
-      "💵 ĐÃ NHẬN:",
-      amount
-    );
+    const gatewayName = gateway || "SePay";
 
-    if (
-      amount < orderTotal
-    ) {
-      console.log(
-        `⚠️ THANH TOÁN THIẾU: Cần ${orderTotal}, nhận ${amount}`
-      );
+    const updateOperations = checkoutOrders
+      .filter(
+        (item) =>
+          item.isPaid !== true &&
+          String(item.paymentStatus || "").toUpperCase() !== "PAID"
+      )
+      .map((item) => ({
+        updateOne: {
+          filter: {
+            _id: item._id,
+            isPaid: { $ne: true },
+            paymentStatus: { $ne: "PAID" },
+          },
+          update: {
+            $set: {
+              isPaid: true,
+              paymentStatus: "PAID",
+              paidAmount: Number(item.totalPrice || 0),
+              paymentTransactionId: transactionId,
+              paymentGateway: gatewayName,
+              paidAt,
+              status: "COMPLETED",
+            },
+          },
+        },
+      }));
 
+    if (!updateOperations.length) {
       return res.status(200).json({
         success: true,
-        message:
-          "Số tiền thanh toán chưa đủ",
-        required: orderTotal,
-        received: amount
+        message: "Hóa đơn đã được xử lý",
+        checkoutId: order.checkoutId || null,
+        paymentCode,
       });
     }
 
-    // ==================================================
-    // 10. CẬP NHẬT THANH TOÁN
-    // ==================================================
-
-    order.isPaid = true;
-
-    order.paymentStatus = "PAID";
-
-    order.status = "COMPLETED";
-
-    order.paidAmount = amount;
-
-    order.paymentTransactionId =
-      String(
-        id ||
-        referenceCode ||
-        ""
-      );
-
-    order.paymentGateway =
-      gateway || "SePay";
-
-    order.paidAt =
-      new Date();
-
-    await order.save();
-
-    // ==================================================
-    // 11. XÁC NHẬN SAU KHI SAVE
-    // ==================================================
+    const updateResult = await Order.bulkWrite(updateOperations);
 
     console.log("\n====================================");
-    console.log(
-      "✅ THANH TOÁN SEPAY THÀNH CÔNG"
-    );
-    console.log("====================================");
-    console.log(
-      "🧾 ORDER:",
-      order._id
-    );
-    console.log(
-      "💳 PAYMENT CODE:",
-      order.paymentCode
-    );
-    console.log(
-      "💰 AMOUNT:",
-      amount
-    );
-    console.log(
-      "💳 TRANSACTION:",
-      order.paymentTransactionId
-    );
-    console.log(
-      "📌 STATUS:",
-      order.paymentStatus
-    );
-    console.log(
-      "✔️ IS PAID:",
-      order.isPaid
-    );
-    console.log(
-      "⏰ PAID AT:",
-      order.paidAt
-    );
+    console.log("✅ THANH TOÁN SEPAY THÀNH CÔNG");
+    console.log("🧾 ORDER:", order._id);
+    console.log("🧩 CHECKOUT ID:", order.checkoutId || "Đơn cũ");
+    console.log("💳 PAYMENT CODE:", paymentCode);
+    console.log("💰 AMOUNT:", amount);
+    console.log("💳 TRANSACTION:", transactionId);
+    console.log("📌 UPDATED:", updateResult.modifiedCount);
+    console.log("⏰ PAID AT:", paidAt);
     console.log("====================================\n");
-
-    // ==================================================
-    // 12. TRẢ KẾT QUẢ CHO SEPAY
-    // ==================================================
 
     return res.status(200).json({
       success: true,
       message:
-        "Thanh toán thành công",
-      orderId:
-        order._id,
-      paymentCode:
-        order.paymentCode,
-      amount:
-        amount
+        updateResult.modifiedCount > 0
+          ? "Đã xác nhận thanh toán hóa đơn"
+          : "Hóa đơn đã được xử lý",
+      orderId: order._id,
+      checkoutId: order.checkoutId || null,
+      paymentCode,
+      amount,
+      modifiedCount: updateResult.modifiedCount,
     });
-
   } catch (error) {
-    console.error(
-      "\n❌ LỖI SEPAY WEBHOOK:"
-    );
-
+    console.error("\n❌ LỖI SEPAY WEBHOOK:");
     console.error(error);
 
     return res.status(500).json({
       success: false,
-      message:
-        error.message
+      message: error.message || "Lỗi xử lý thanh toán",
     });
   }
 });
 
 // ======================================================
-// CHECK PAYMENT STATUS
-//
-// GET:
-// /api/sepay/check-status?memo=LG3V-B02-8003DD
-//
-// hoặc:
-//
-// /api/sepay/check-status?paymentCode=LG3V-B02-8003DD
+// KIỂM TRA TRẠNG THÁI THANH TOÁN
+// GET /api/sepay/check-status?memo=LG3V-B02-8003DD
+// GET /api/sepay/check-status?paymentCode=LG3V-B02-8003DD
 // ======================================================
 
-router.get(
-  "/check-status",
-  async (req, res) => {
-    try {
-      const {
-        memo,
-        paymentCode
-      } = req.query;
+router.get("/check-status", async (req, res) => {
+  try {
+    const { memo, paymentCode } = req.query;
 
-      const rawCode =
-        paymentCode ||
-        memo ||
-        "";
+    const rawCode = paymentCode || memo || "";
 
-      if (!String(rawCode).trim()) {
-        return res.status(400).json({
-          isPaid: false,
-          message:
-            "Thiếu mã thanh toán"
-        });
-      }
-
-      // ==================================================
-      // CHUẨN HÓA PAYMENT CODE
-      // ==================================================
-
-      const code =
-        normalizePaymentCode(
-          rawCode
-        );
-
-      if (!code) {
-        console.log(
-          "⚠️ PAYMENT CODE KHÔNG HỢP LỆ:",
-          rawCode
-        );
-
-        return res.status(200).json({
-          isPaid: false,
-          message:
-            "Mã thanh toán không hợp lệ"
-        });
-      }
-
-      console.log(
-        "🔎 CHECK PAYMENT:",
-        code
-      );
-
-      // ==================================================
-      // TÌM ORDER
-      // ==================================================
-
-      const order =
-        await Order.findOne({
-          paymentCode: code
-        });
-
-      if (!order) {
-        console.log(
-          "⚠️ CHECK STATUS - KHÔNG TÌM THẤY ORDER:",
-          code
-        );
-
-        return res.status(200).json({
-          isPaid: false,
-          message:
-            "Không tìm thấy đơn hàng",
-          paymentCode:
-            code
-        });
-      }
-
-      // ==================================================
-      // KIỂM TRA THANH TOÁN
-      // ==================================================
-
-      const isPaid =
-        order.isPaid === true ||
-        String(
-          order.paymentStatus || ""
-        ).toUpperCase() === "PAID";
-
-      console.log(
-        "💳 PAYMENT STATUS:",
-        order.paymentStatus
-      );
-
-      console.log(
-        "✔️ IS PAID:",
-        isPaid
-      );
-
-      return res.status(200).json({
-        isPaid: isPaid,
-        paymentStatus:
-          order.paymentStatus,
-        order: order
-      });
-
-    } catch (error) {
-      console.error(
-        "❌ LỖI CHECK PAYMENT:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!String(rawCode).trim()) {
+      return res.status(400).json({
         isPaid: false,
-        message:
-          error.message
+        message: "Thiếu mã thanh toán",
       });
     }
+
+    // 1. Chuẩn hóa mã
+    const code = normalizePaymentCode(rawCode);
+
+    if (!code) {
+      return res.status(200).json({
+        isPaid: false,
+        message: "Mã thanh toán không hợp lệ",
+      });
+    }
+
+    console.log("🔎 CHECK PAYMENT:", code);
+
+    // 2. Tìm đơn theo mã thanh toán
+    const order = await Order.findOne({
+      paymentCode: code,
+    });
+
+    if (!order) {
+      return res.status(200).json({
+        isPaid: false,
+        message: "Không tìm thấy đơn hàng",
+        paymentCode: code,
+      });
+    }
+
+    // 3. Lấy nhóm đơn trong cùng checkout
+    const checkoutOrders = order.checkoutId
+      ? await Order.find({
+          checkoutId: order.checkoutId,
+        })
+      : [order];
+
+    // Hóa đơn chỉ được xem là đã thanh toán khi tất cả bản ghi
+    // trong checkout đều được đánh dấu đã thanh toán.
+    const isPaid =
+      checkoutOrders.length > 0 &&
+      checkoutOrders.every(
+        (item) =>
+          item.isPaid === true ||
+          String(item.paymentStatus || "").toUpperCase() === "PAID"
+      );
+
+    console.log("🧩 CHECKOUT ID:", order.checkoutId || "Đơn cũ");
+    console.log("💳 PAYMENT STATUS:", order.paymentStatus);
+    console.log("✔️ IS PAID:", isPaid);
+
+    return res.status(200).json({
+      isPaid,
+      paymentStatus: isPaid ? "PAID" : order.paymentStatus,
+      checkoutId: order.checkoutId || null,
+      paymentCode: code,
+      order,
+      orderCount: checkoutOrders.length,
+      totalAmount: checkoutOrders.reduce(
+        (sum, item) => sum + Number(item.totalPrice || 0),
+        0
+      ),
+    });
+  } catch (error) {
+    console.error("❌ LỖI CHECK PAYMENT:", error);
+
+    return res.status(500).json({
+      isPaid: false,
+      message: error.message || "Lỗi kiểm tra thanh toán",
+    });
   }
-);
+});
 
 module.exports = router;
